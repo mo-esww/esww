@@ -37,7 +37,7 @@ st.markdown("""
 col_logo, col_title = st.columns([1, 3])
 with col_logo:
     # Trage hier den Link zu deinem Firmenlogo ein (oder lass es weg, falls keines da ist)
-    st.image("https://www.es-ww.de/unser-service/#", width=140)
+    st.image("https://www.es-ww.de/wp-content/uploads/2023/02/Logo_ESW_farbig-2048x546.png", width=140)
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator")
