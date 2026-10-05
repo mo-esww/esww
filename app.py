@@ -82,23 +82,20 @@ elif auswahl_modus.startswith("2."):
     brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"])
     verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100)
     
-    # Überschlägige Umrechnung auf Heizlast (inkl. Wirkungsgrad-Annahme alter Kessel ca. 0.8 / 0.85)
     if "Heizöl" in brennstoff_art:
-        # 1 Liter Heizöl ~ 10 kWh. Bei altem Kessel ca. 80% Nutzungsgrad -> Jahresarbeit / ~2000 Volllaststunden als Daumenwert
         jaehrliche_waermearbeit = verbrauch * 10 * 0.85
     elif "Erdgas" in brennstoff_art:
         jaehrliche_waermearbeit = verbrauch * 0.85
     else:  # Flüssiggas
         jaehrliche_waermearbeit = verbrauch * 6.5 * 0.85
         
-    # Daumenwert-Heizlastabschätzung über Jahresarbeit / 2000 Vollbenutzungsstunden (oder Schweizer Formel)
     heizlast_watt = (jaehrliche_waermearbeit / 2000) * 1000
     personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
 
 # --- Modus 3: Direkte Heizlast ---
 else:
     heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=50.0, value=10.0, step=0.5)
-    heizlast_watt = heizlast_kw * 1000.0
+    heizlast_watt =heizlast_kw * 1000.0
     personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
 
 # Allgemeine Zusatzparameter für alle Modi
@@ -108,7 +105,8 @@ ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"])
 frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"])
 
 # --- Berechnungs-Logik (Komponentenauswahl) ---
-ww_aufschlag = 2000 if ww_bereitung == "ja" else 0
+# Warmwasseraufschlag: 500 W pro Person (wenn Warmwasserbereitung "ja" gewählt ist, sonst 0)
+ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
 gesamt_last = heizlast_watt + ww_aufschlag
 
 wp_daten_ahpa = {
@@ -154,7 +152,7 @@ st.subheader("📊 Auswertung & Komponentenauswahl")
 res_col1, res_col2 = st.columns(2)
 with res_col1:
     st.metric(label="Berechnete Heizlast", value=f"{heizlast_watt:,.0f} W".replace(",", "."))
-    st.metric(label="Warmwasseraufschlag", value=f"{ww_aufschlag} W")
+    st.metric(label="Warmwasseraufschlag (500W/Pers.)", value=f"{ww_aufschlag} W")
     st.metric(label="Empfohlene Wärmepumpe", value=empfohlene_wp)
 
 with res_col2:
