@@ -1,25 +1,60 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Wärmepumpen-Konfigurator", page_icon="🔥", layout="centered")
+# --- Seiten-Konfiguration & Corporate Design ---
+st.set_page_config(
+    page_title="Wärmepumpen-Konfigurator", 
+    page_icon="🔥", 
+    layout="centered"
+)
 
-st.title("🔥 Wärmepumpen-Auslegung & Zubehör")
-st.write("Berechne Heizlast, Wärmepumpe und passendes Zubehör basierend auf Gebäude- und Verbrauchsdaten.")
+# Eigene CSS-Anpassungen für Farben (Beispiel: angelehnt an eine typische Firmen-CI in Blau/Dunkel)
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f9f9f9;
+    }
+    h1 {
+        color: #0b2545;
+    }
+    h2, h3 {
+        color: #134074;
+    }
+    .stButton>button {
+        background-color: #134074;
+        color: white;
+        border-radius: 5px;
+        width: 100%;
+    }
+    .stButton>button:hover {
+        background-color: #0b2545;
+        color: white;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# --- Eingabemöglichkeit für den Nutzer ---
-st.subheader("1. Gebäudedaten eingeben")
+# --- Kopfbereich mit Firmenlogo und Titel ---
+col_logo, col_title = st.columns([1, 3])
+with col_logo:
+    # Trage hier den Link zu deinem Firmenlogo ein (oder lass es weg, falls keines da ist)
+    st.image("https://via.placeholder.com/150x60.png?text=Dein+Logo", width=140)
 
-col1, col2 = st.columns(2)
-with col1:
-    wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=1000, value=160, step=10)
-    personen = st.selectbox("Anzahl Personen", [1, 2, 3, 4, 5, 6, 7])
-    baujahr = st.selectbox("Baujahr / Dämmstandard", [1950, 1970, 1980, 1990, 2000, 2010, 2016])
+with col_title:
+    st.title("Wärmepumpen-Konfigurator")
+    st.markdown("*Heizlast- und Komponenten-Auslegung für Fachbetriebe*")
 
-with col2:
-    systemtemperatur = st.selectbox("Systemtemperatur (°C)", [35, 40, 45, 50, 55])
-    wp_typ_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"])
-    ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"])
-    frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"])
+st.markdown("---")
+
+# --- Eingabemöglichkeit für den Nutzer (ALLES UNTEREINANDER) ---
+st.subheader("1. Gebäudedaten & Parameter")
+
+wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=1000, value=160, step=10)
+baujahr = st.selectbox("Baujahr / Dämmstandard", [1950, 1970, 1980, 1990, 2000, 2010, 2016])
+personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+systemtemperatur = st.selectbox("Systemtemperatur (°C)", [35, 40, 45, 50, 55])
+wp_typ_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"])
+ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"])
+frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"])
 
 # --- Berechnungs-Logik ---
 heizlast_tabelle = {
