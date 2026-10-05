@@ -8,7 +8,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Eigene CSS-Anpassungen mit deinem Farbcode #4bb6c4
+# Eigene CSS-Anpassungen mit deinem Farbcode #4bb6c4 für Überschriften, Buttons und Akzente
 st.markdown("""
     <style>
     .main {
@@ -18,7 +18,7 @@ st.markdown("""
         color: #111111;
     }
     h2, h3 {
-        color: #4bb6c4; /* Dein Firmen-Farbcode */
+        color: #4bb6c4 !important; /* Dein Firmen-Farbcode */
     }
     .stButton>button {
         background-color: #4bb6c4;
@@ -31,18 +31,22 @@ st.markdown("""
         background-color: #3aa2af;
         color: white;
     }
+    /* Eingabefelder-Akzente und Metriken */
+    [data-testid="stMetricValue"] {
+        color: #4bb6c4;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Kopfbereich mit eurem Firmenlogo und Titel ---
+# --- Kopfbereich mit eurem Firmenlogo (deutlich größer) und Titel ---
 col_logo, col_title = st.columns([1, 2])
 with col_logo:
-    # Euer Firmenlogo direkt von eurer Homepage eingebunden
-    st.image("https://www.es-ww.de/wp-content/uploads/2023/02/Logo_ESW_farbig-2048x546.png", width=220)
+    # Logo-Breite auf 320 Pixel erhöht
+    st.image("https://www.es-ww.de/wp-content/uploads/2023/02/Logo_ESW_farbig-2048x546.png", width=320)
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator")
-    st.markdown("*Heizlast- und Komponenten-Auslegung*")
+    st.markdown("*Überschlägige Heizlast- und Komponenten-Auslegung, ersetzt keine Berechnung nach DIN 12831*")
 
 st.markdown("---")
 
