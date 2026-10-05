@@ -8,7 +8,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Eigene CSS-Anpassungen mit deinem Farbcode #4bb6c4 für Überschriften, Buttons und Akzente
+# Eigene CSS-Anpassungen mit deinem Farbcode #4bb6c4
 st.markdown("""
     <style>
     .main {
@@ -18,7 +18,7 @@ st.markdown("""
         color: #111111;
     }
     h2, h3 {
-        color: #4bb6c4 !important; /* Dein Firmen-Farbcode */
+        color: #4bb6c4 !important;
     }
     .stButton>button {
         background-color: #4bb6c4;
@@ -31,17 +31,15 @@ st.markdown("""
         background-color: #3aa2af;
         color: white;
     }
-    /* Eingabefelder-Akzente und Metriken */
     [data-testid="stMetricValue"] {
         color: #4bb6c4;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Kopfbereich mit eurem Firmenlogo (deutlich größer) und Titel ---
+# --- Kopfbereich mit Logo und Titel ---
 col_logo, col_title = st.columns([1, 2])
 with col_logo:
-    # Logo-Breite auf 320 Pixel erhöht
     st.image("https://www.es-ww.de/wp-content/uploads/2023/02/Logo_ESW_farbig-2048x546.png", width=320)
 
 with col_title:
@@ -50,23 +48,66 @@ with col_title:
 
 st.markdown("---")
 
-# --- Eingabemöglichkeit für den Nutzer (untereinander) ---
+# --- 1. Eingabemöglichkeit: Modus-Auswahl ---
 st.subheader("1. Gebäudedaten & Parameter")
 
-wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=1000, value=160, step=10)
-baujahr = st.selectbox("Baujahr / Dämmstandard", [1950, 1970, 1980, 1990, 2000, 2010, 2016])
-personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+auswahl_modus = st.radio(
+    "Wie möchten Sie die Heizlast ermitteln?",
+    [
+        "1. Über Gebäudestandard & Wohnfläche (Standard)",
+        "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)",
+        "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"
+    ]
+)
+
+st.markdown("")
+
+# Variablen initialisieren
+heizlast_watt = 0.0
+
+# --- Modus 1: Wohnfläche & Baujahr ---
+if auswahl_modus.startswith("1."):
+    wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=1000, value=160, step=10)
+    baujahr = st.selectbox("Baujahr / Dämmstandard", [1950, 1970, 1980, 1990, 2000, 2010, 2016])
+    
+    heizlast_tabelle = {
+        1950: 160.0, 1970: 130.0, 1980: 110.0, 1990: 90.0, 2000: 70.0, 2010: 50.0, 2016: 40.0
+    }
+    spez_heizlast = heizlast_tabelle.get(baujahr, 50.0)
+    heizlast_watt = wohnflaeche * spez_heizlast
+    personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+
+# --- Modus 2: Fossiler Brennstoffverbrauch ---
+elif auswahl_modus.startswith("2."):
+    brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"])
+    verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100)
+    
+    # Überschlägige Umrechnung auf Heizlast (inkl. Wirkungsgrad-Annahme alter Kessel ca. 0.8 / 0.85)
+    if "Heizöl" in brennstoff_art:
+        # 1 Liter Heizöl ~ 10 kWh. Bei altem Kessel ca. 80% Nutzungsgrad -> Jahresarbeit / ~2000 Volllaststunden als Daumenwert
+        jaehrliche_waermearbeit = verbrauch * 10 * 0.85
+    elif "Erdgas" in brennstoff_art:
+        jaehrliche_waermearbeit = verbrauch * 0.85
+    else:  # Flüssiggas
+        jaehrliche_waermearbeit = verbrauch * 6.5 * 0.85
+        
+    # Daumenwert-Heizlastabschätzung über Jahresarbeit / 2000 Vollbenutzungsstunden (oder Schweizer Formel)
+    heizlast_watt = (jaehrliche_waermearbeit / 2000) * 1000
+    personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+
+# --- Modus 3: Direkte Heizlast ---
+else:
+    heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=50.0, value=10.0, step=0.5)
+    heizlast_watt = heizlast_kw * 1000.0
+    personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+
+# Allgemeine Zusatzparameter für alle Modi
 systemtemperatur = st.selectbox("Systemtemperatur (°C)", [35, 40, 45, 50, 55])
 wp_typ_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"])
 ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"])
 frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"])
 
-# --- Berechnungs-Logik ---
-heizlast_tabelle = {
-    1950: 160.0, 1970: 130.0, 1980: 110.0, 1990: 90.0, 2000: 70.0, 2010: 50.0, 2016: 40.0
-}
-spez_heizlast = heizlast_tabelle.get(baujahr, 50.0)
-heizlast_watt = wohnflaeche * spez_heizlast
+# --- Berechnungs-Logik (Komponentenauswahl) ---
 ww_aufschlag = 2000 if ww_bereitung == "ja" else 0
 gesamt_last = heizlast_watt + ww_aufschlag
 
