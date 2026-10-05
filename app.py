@@ -34,15 +34,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Kopfbereich mit Firmenlogo (Größe angepasst) und Titel ---
-col_logo, col_title = st.columns([1, 3])
+# --- Kopfbereich mit eurem Firmenlogo und Titel ---
+col_logo, col_title = st.columns([1, 2])
 with col_logo:
-    # Hier den Dateinamen deines Logos eintragen (z.B. "logo.png") oder den Web-Link
-    st.image("https://www.es-ww.de/wp-content/uploads/2023/02/Logo_ESW_farbig-2048x546.png", width=240)
+    # Euer Firmenlogo direkt von eurer Homepage eingebunden
+    st.image("https://www.es-ww.de/wp-content/uploads/2023/02/Logo_ESW_farbig-2048x546.png", width=220)
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator")
-    st.markdown("*Heizlast- und Komponenten-Auslegung für Fachbetriebe*")
+    st.markdown("*Heizlast- und Komponenten-Auslegung*")
 
 st.markdown("---")
 
