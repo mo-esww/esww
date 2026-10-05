@@ -8,36 +8,37 @@ st.set_page_config(
     layout="centered"
 )
 
-# Eigene CSS-Anpassungen für Farben (Beispiel: angelehnt an eine typische Firmen-CI in Blau/Dunkel)
+# Eigene CSS-Anpassungen mit deinem Farbcode #4bb6c4
 st.markdown("""
     <style>
     .main {
         background-color: #f9f9f9;
     }
     h1 {
-        color: #0b2545;
+        color: #111111;
     }
     h2, h3 {
-        color: #134074;
+        color: #4bb6c4; /* Dein Firmen-Farbcode */
     }
     .stButton>button {
-        background-color: #134074;
+        background-color: #4bb6c4;
         color: white;
         border-radius: 5px;
         width: 100%;
+        font-weight: bold;
     }
     .stButton>button:hover {
-        background-color: #0b2545;
+        background-color: #3aa2af;
         color: white;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Kopfbereich mit Firmenlogo und Titel ---
+# --- Kopfbereich mit Firmenlogo (Größe angepasst) und Titel ---
 col_logo, col_title = st.columns([1, 3])
 with col_logo:
-    # Trage hier den Link zu deinem Firmenlogo ein (oder lass es weg, falls keines da ist)
-    st.image("https://www.es-ww.de/wp-content/uploads/2023/02/Logo_ESW_farbig-2048x546.png", width=140)
+    # Hier den Dateinamen deines Logos eintragen (z.B. "logo.png") oder den Web-Link
+    st.image("https://www.es-ww.de/wp-content/uploads/2023/02/Logo_ESW_farbig-2048x546.png", width=240)
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator")
@@ -45,7 +46,7 @@ with col_title:
 
 st.markdown("---")
 
-# --- Eingabemöglichkeit für den Nutzer (ALLES UNTEREINANDER) ---
+# --- Eingabemöglichkeit für den Nutzer (untereinander) ---
 st.subheader("1. Gebäudedaten & Parameter")
 
 wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=1000, value=160, step=10)
