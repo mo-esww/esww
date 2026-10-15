@@ -107,4 +107,28 @@ with col_input1:
         wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=1000, value=160, step=10)
         baujahr = st.selectbox("Baujahr / Dämmstandard", [1950, 1970, 1980, 1990, 2000, 2010, 2016])
         heizlast_tabelle = {1950: 160.0, 1970: 130.0, 1980: 110.0, 1990: 90.0, 2000: 70.0, 2010: 50.0, 2016: 40.0}
-        spez_heizlast = heizlast_tabelle.get(baujahr, 50.
+        spez_heizlast = heizlast_tabelle.get(baujahr, 50.0)
+        heizlast_watt = wohnflaeche * spez_heizlast
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+
+    elif auswahl_modus.startswith("2."):
+        brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"])
+        verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100)
+        if "Heizöl" in brennstoff_art:
+            jaehrliche_waermearbeit = verbrauch * 10 * 0.85
+        elif "Erdgas" in brennstoff_art:
+            jaehrliche_waermearbeit = verbrauch * 0.85
+        else:
+            jaehrliche_waermearbeit = verbrauch * 6.5 * 0.85
+        heizlast_watt = (jaehrliche_waermearbeit / 2000) * 1000
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+
+    else:
+        heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5)
+        heizlast_watt = heizlast_kw * 1000.0
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+
+with col_input2:
+    st.markdown("### Klimadaten & Baureihe")
+    baureihe_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"])
+    t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_
