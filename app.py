@@ -45,7 +45,7 @@ with col_logo:
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator & Bivalenzpunkt-Rechner")
-    st.markdown("*Interaktive Auslegung, Baureihen-Wahl und Begrenzung des Bivalenzpunkts auf max. -3°C*")
+    st.markdown("*Interaktive Auslegung, Baureihen-Wahl und Begrenzung des Bivalenzpunkts auf max. -5°C*")
     st.markdown("*Ersetzt keine Heizlastberechnung nach Norm 12831*")
 
 st.markdown("---")
@@ -191,9 +191,9 @@ for wp_name, daten in aktive_db.items():
 
 df_ergebnisse = pd.DataFrame(ergebnisse_liste)
 
-# Automatische Modell-Auswahl: Bivalenzpunkt darf MAXIMAL -3°C sein (also <= -3.0)
+# Automatische Modell-Auswahl: Bivalenzpunkt darf MAXIMAL -5°C sein (also <= -5.0)
 df_geprueft = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=True)
-passende_wps = df_geprueft[df_geprueft["Bivalenzpunkt [°C]"] <= -3.0]
+passende_wps = df_geprueft[df_geprueft["Bivalenzpunkt [°C]"] <= -5.0]
 
 if not passende_wps.empty:
     empfohlene_wp = passende_wps.iloc[0]["Modell"]
@@ -225,7 +225,7 @@ st.markdown("---")
 st.subheader("📊 Auswertung, Bivalenzpunkt & Komponentenauswahl")
 
 if warnung_aktiv:
-    st.warning(f"⚠️ **Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt von $\le -3\,^\circ\text{C}$. Das stärkste verfügbare Modell wurde gewählt (Bivalenzpunkt liegt bei {biv_empfehlung} °C).")
+    st.warning(f"⚠️ **Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt von $\le -5\,^\circ\text{C}$. Das stärkste verfügbare Modell wurde gewählt (Bivalenzpunkt liegt bei {biv_empfehlung} °C).")
 
 res_col1, res_col2, res_col3 = st.columns(3)
 
