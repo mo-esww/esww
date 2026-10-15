@@ -45,12 +45,11 @@ with col_logo:
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator & Bivalenzpunkt-Rechner")
-    st.markdown("*Interaktive Auslegung und Ermittlung des Bivalenzpunkts über alle Leistungskennlinien*")
+    st.markdown("*Interaktive Auslegung und automatisierte Auswahl über alle Leistungskennlinien*")
 
 st.markdown("---")
 
 # --- Kennlinien-Datenbank für alle 7 Modelle ---
-# Quellentemperaturen von -18°C bis +22°C in 2°C Schritten
 x_vals = list(range(-18, 23, 2))
 
 kennlinien_db = {
@@ -137,21 +136,20 @@ with col_input2:
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
 gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
 
-# --- Bivalenzpunkt-Berechnung & WP-Auswahl über alle 7 Modelle ---
+# --- Dynamische Bivalenzpunkt-Berechnung für ALLE 7 Modelle ---
 ergebnisse_liste = []
 
 for wp_name, daten in kennlinien_db.items():
     wp_leistungen = daten[systemtemperatur]
     
-    # Ermittle Bivalenzpunkt per linearer Interpolation
-    biv_punkt = "Außerhalb"
+    biv_punkt = 99.0
     leistung_biv = 0.0
     
-    # Berechne Gebäudeheizlast für alle Stützpunkte x_vals
+    # Gebäudeheizlast über die Stützpunkte x_vals
     last_werte = [gesamt_last_kw * (t_grenz - x) / (t_grenz - t_norm) for x in x_vals]
     differenzen = [wp_l - l_w for wp_l, l_w in zip(wp_leistungen, last_werte)]
     
-    # Suche Vorzeichenwechsel (Schnittpunkt)
+    # Schnittpunkt (Vorzeichenwechsel) suchen
     for i in range(len(x_vals) - 1):
         if differenzen[i] * differenzen[i+1] <= 0:
             x1, x2 = x_vals[i], x_vals[i+1]
@@ -163,40 +161,47 @@ for wp_name, daten in kennlinien_db.items():
                 biv_punkt = x1
                 leistung_biv = wp_leistungen[i]
             break
-    
-    if biv_punkt == "Außerhalb" and differenzen[0] >= 0:
-        biv_punkt = x_vals[0] # Deckt alles ab
+            
+    if biv_punkt == 99.0 and differenzen[0] >= 0:
+        biv_punkt = -18.0 # Deckt den Bereich komplett ab (monovalent)
         leistung_biv = wp_leistungen[0]
-        
-    # Leistung bei Norm-Außentemperatur interpolieren
+    elif biv_punkt == 99.0:
+        biv_punkt = 22.0 # Liegt über dem Bereich
+        leistung_biv = wp_leistungen[-1]
+
     wp_power_tnorm = np.interp(t_norm, x_vals, wp_leistungen)
     deckungsgrad_norm = (wp_power_tnorm / gesamt_last_kw) * 100
     
     ergebnisse_liste.append({
         "Modell": wp_name,
-        "Bivalenzpunkt [°C]": round(biv_punkt, 1) if isinstance(biv_punkt, (int, float)) else 999,
+        "Bivalenzpunkt [°C]": round(biv_punkt, 1),
         "Leistung bei Biv. [kW]": round(leistung_biv, 2),
         "Deckung bei T_norm [%]": round(deckungsgrad_norm, 1),
-        "Leistungen": wp_leistungen
+        "Leistungen": wp_leistungen,
+        "MaxLeistungBei22C": wp_leistungen[-1]
     })
 
 df_ergebnisse = pd.DataFrame(ergebnisse_liste)
 
-# Filter: Geeignete Wärmepumpe (Bivalenzpunkt <= T_norm oder sinnvoller Betrieb)
-gueltige_wps = df_ergebnisse[df_ergebnisse["Bivalenzpunkt [°C]"] <= 5.0].sort_values(by="Bivalenzpunkt [°C]")
+# Automatische Auswahl: Finde die kleinste WP, deren Bivalenzpunkt <= +2°C liegt und die den Wärmebedarf sinnvoll deckt
+# Sortiere nach Maximalleistung, damit die kompakteste passende WP gewählt wird
+df_geprueft = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=True)
 
-if not gueltige_wps.empty:
-    empfohlene_wp = gueltige_wps.iloc[0]["Modell"]
-    biv_empfehlung = gueltige_wps.iloc[0]["Bivalenzpunkt [°C]"]
-    leistung_biv_empf = gueltige_wps.iloc[0]["Leistung bei Biv. [kW]"]
-    deckung_empf = gueltige_wps.iloc[0]["Deckung bei T_norm [%]"]
-    aktive_leistungen = gueltige_wps.iloc[0]["Leistungen"]
+# Filter: Bivalenzpunkt muss realistisch sein (<= 2°C)
+passende_wps = df_geprueft[df_geprueft["Bivalenzpunkt [°C]"] <= 2.0]
+
+if not passende_wps.empty:
+    empfohlene_wp = passende_wps.iloc[0]["Modell"]
+    biv_empfehlung = passende_wps.iloc[0]["Bivalenzpunkt [°C]"]
+    deckung_empf = passende_wps.iloc[0]["Deckung bei T_norm [%]"]
+    aktive_leistungen = passende_wps.iloc[0]["Leistungen"]
 else:
-    empfohlene_wp = df_ergebnisse.iloc[-1]["Modell"]
-    biv_empfehlung = df_ergebnisse.iloc[-1]["Bivalenzpunkt [°C]"]
-    leistung_biv_empf = df_ergebnisse.iloc[-1]["Leistung bei Biv. [kW]"]
-    deckung_empf = df_ergebnisse.iloc[-1]["Deckung bei T_norm [%]"]
-    aktive_leistungen = df_ergebnisse.iloc[-1]["Leistungen"]
+    # Fallback auf das stärkste Modell, wenn die Last extrem hoch ist
+    empfohlene_wp = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=False).iloc[0]["Modell"]
+    row_empf = df_ergebnisse[df_ergebnisse["Modell"] == empfohlene_wp].iloc[0]
+    biv_empfehlung = row_empf["Bivalenzpunkt [°C]"]
+    deckung_empf = row_empf["Deckung bei T_norm [%]"]
+    aktive_leistungen = row_empf["Leistungen"]
 
 # Hydraulik-Zusatzkomponenten
 puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300}
@@ -241,4 +246,4 @@ chart_data = pd.DataFrame({
 
 st.line_chart(chart_data)
 
-st.success("Konfiguration und Bivalenzpunkt-Ermittlung erfolgreich abgeschlossen!")
+st.success("Konfiguration und Bivalenzpunkt-Ermittlung erfolgreich aktualisiert!")
