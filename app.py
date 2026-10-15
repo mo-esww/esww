@@ -45,7 +45,7 @@ with col_logo:
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator & Bivalenzpunkt-Rechner")
-    st.markdown("*Interaktive Auslegung, Baureihen-Wahl und Begrenzung des Bivalenzpunkts auf max. -5°C*")
+    st.markdown("*Interaktive Auslegung, Baureihen-Wahl und Begrenzung des Bivalenzpunkts auf -5°C bis -8°C*")
     st.markdown("*Ersetzt keine Heizlastberechnung nach Norm 12831*")
 
 st.markdown("---")
@@ -191,9 +191,9 @@ for wp_name, daten in aktive_db.items():
 
 df_ergebnisse = pd.DataFrame(ergebnisse_liste)
 
-# Automatische Modell-Auswahl: Bivalenzpunkt darf MAXIMAL -5°C sein (also <= -5.0)
+# Automatische Modell-Auswahl: Bivalenzpunkt soll zwischen -5°C und -8°C liegen (-8.0 <= Biv <= -5.0)
 df_geprueft = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=True)
-passende_wps = df_geprueft[df_geprueft["Bivalenzpunkt [°C]"] <= -5.0]
+passende_wps = df_geprueft[(df_geprueft["Bivalenzpunkt [°C]"] >= -8.0) & (df_geprueft["Bivalenzpunkt [°C]"] <= -5.0)]
 
 if not passende_wps.empty:
     empfohlene_wp = passende_wps.iloc[0]["Modell"]
@@ -201,6 +201,7 @@ if not passende_wps.empty:
     aktive_leistungen = passende_wps.iloc[0]["Leistungen"]
     warnung_aktiv = False
 else:
+    # Fallback, falls keines im Bereich -5 bis -8 liegt: nimm das nächstpassende
     empfohlene_wp = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=False).iloc[0]["Modell"]
     row_empf = df_ergebnisse[df_ergebnisse["Modell"] == empfohlene_wp].iloc[0]
     biv_empfehlung = row_empf["Bivalenzpunkt [°C]"]
@@ -225,7 +226,7 @@ st.markdown("---")
 st.subheader("📊 Auswertung, Bivalenzpunkt & Komponentenauswahl")
 
 if warnung_aktiv:
-    st.warning(f"⚠️ **Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt von $\le -5\,^\circ\text{C}$. Das stärkste verfügbare Modell wurde gewählt (Bivalenzpunkt liegt bei {biv_empfehlung} °C).")
+    st.warning(f"⚠️ **Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im Bereich von **-5°C bis -8°C**. Das alternative verfügbare Modell wurde gewählt (Bivalenzpunkt liegt bei {biv_empfehlung} °C).")
 
 res_col1, res_col2, res_col3 = st.columns(3)
 
@@ -253,4 +254,4 @@ chart_data = pd.DataFrame({
 
 st.line_chart(chart_data)
 
-st.success("Konfiguration, Baureihen-Wahl und Bivalenzpunkt-Begrenzung erfolgreich durchgeführt!")
+st.success("Konfiguration, Baureihen-Wahl und Bivalenzpunkt-Zielbereich (-5°C bis -8°C) erfolgreich durchgeführt!")
