@@ -49,7 +49,7 @@ with col_title:
 
 st.markdown("---")
 
-# --- Kennlinien-Datenbank getrennt nach Baureihen ---
+# --- Kennlinien-Datenbank für alle Modelle getrennt nach Baureihen ---
 x_vals = list(range(-18, 23, 2))
 
 kennlinien_db_ahpa = {
@@ -207,6 +207,47 @@ else:
     deckung_empf = row_empf["Deckung bei T_norm [%]"]
     aktive_leistungen = row_empf["Leistungen"]
 
-# Hydraulik-Zusatzkomponenten
+# Hydraulik-Zusatzkomponenten (sauber definiert)
 puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300}
-puffer_groesse = puffer
+puffer_groesse = puffer_tabelle.get(empfohlene_wp, 300)
+
+if frischwasser == "ja":
+    boiler_groesse = 500
+else:
+    boiler_tabelle = {1: 300, 2: 300, 3: 300, 4: 400, 5: 400, 6: 500, 7: 500}
+    boiler_groesse = boiler_tabelle.get(personen, 400)
+
+mag_tabelle = {300: 35, 500: 50, 800: 80, 1000: 80}
+mag_groesse = mag_tabelle.get(puffer_groesse, 35)
+
+# --- Ergebnis-Anzeige ---
+st.markdown("---")
+st.subheader("📊 Auswertung, Bivalenzpunkt & Komponentenauswahl")
+
+res_col1, res_col2, res_col3 = st.columns(3)
+
+with res_col1:
+    st.metric(label="Gesamt-Heizlast (inkl. WW)", value=f"{gesamt_last_kw:.1f} kW")
+    st.metric(label=f"Empfohlene WP ({baureihe_wahl})", value=empfohlene_wp)
+
+with res_col2:
+    st.metric(label="Ermittelter Bivalenzpunkt", value=f"{biv_empfehlung} °C")
+    st.metric(label="Deckungsgrad bei T_norm", value=f"{deckung_empf}%")
+
+with res_col3:
+    st.metric(label="Pufferspeicher", value=f"{puffer_groesse} Liter")
+    st.metric(label="Trinkwasser-Boiler / FriWa", value=f"{boiler_groesse} Liter")
+
+# --- Diagramm: Heizlast vs. WP-Kennlinie ---
+st.markdown("---")
+st.subheader("📈 Kennlinien-Vergleich (Heizlast vs. Wärmepumpen-Leistung)")
+
+chart_data = pd.DataFrame({
+    "Quellentemperatur (°C)": x_vals,
+    "Gebäude-Heizlast (kW)": [gesamt_last_kw * (t_grenz - x) / (t_grenz - t_norm) for x in x_vals],
+    f"WP Maximalleistung {empfohlene_wp} ({systemtemperatur}°C)": aktive_leistungen
+}).set_index("Quellentemperatur (°C)")
+
+st.line_chart(chart_data)
+
+st.success("Konfiguration, Baureihen-Wahl und Bivalenzpunkt-Berechnung erfolgreich durchgeführt!")
