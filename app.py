@@ -45,7 +45,7 @@ with col_logo:
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator & Bivalenzpunkt-Rechner")
-    st.markdown("*Interaktive Auslegung, Baureihen-Wahl und Ermittlung des Bivalenzpunkts*")
+    st.markdown("*Interaktive Auslegung, Baureihen-Wahl und Begrenzung des Bivalenzpunkts auf max. -3°C*")
 
 st.markdown("---")
 
@@ -190,64 +190,30 @@ for wp_name, daten in aktive_db.items():
 
 df_ergebnisse = pd.DataFrame(ergebnisse_liste)
 
-# Automatische Modell-Auswahl innerhalb der gewählten Baureihe
+# Automatische Modell-Auswahl: Bivalenzpunkt darf MAXIMAL -3°C sein (also <= -3.0)
 df_geprueft = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=True)
-passende_wps = df_geprueft[df_geprueft["Bivalenzpunkt [°C]"] <= 5.0]
+passende_wps = df_geprueft[df_geprueft["Bivalenzpunkt [°C]"] <= -3.0]
 
 if not passende_wps.empty:
     empfohlene_wp = passende_wps.iloc[0]["Modell"]
     biv_empfehlung = passende_wps.iloc[0]["Bivalenzpunkt [°C]"]
     deckung_empf = passende_wps.iloc[0]["Deckung bei T_norm [%]"]
     aktive_leistungen = passende_wps.iloc[0]["Leistungen"]
+    warnung_aktiv = False
 else:
-    # Fallback auf das stärkste Modell der Baureihe
+    # Wenn keins die Bedingung <= -3°C erfüllt, wird das stärkste Modell der Baureihe gewählt + Warnung
     empfohlene_wp = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=False).iloc[0]["Modell"]
     row_empf = df_ergebnisse[df_ergebnisse["Modell"] == empfohlene_wp].iloc[0]
     biv_empfehlung = row_empf["Bivalenzpunkt [°C]"]
     deckung_empf = row_empf["Deckung bei T_norm [%]"]
     aktive_leistungen = row_empf["Leistungen"]
+    warnung_aktiv = True
 
-# Hydraulik-Zusatzkomponenten (sauber definiert)
+# Hydraulik-Zusatzkomponenten
 puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300}
 puffer_groesse = puffer_tabelle.get(empfohlene_wp, 300)
 
 if frischwasser == "ja":
     boiler_groesse = 500
 else:
-    boiler_tabelle = {1: 300, 2: 300, 3: 300, 4: 400, 5: 400, 6: 500, 7: 500}
-    boiler_groesse = boiler_tabelle.get(personen, 400)
-
-mag_tabelle = {300: 35, 500: 50, 800: 80, 1000: 80}
-mag_groesse = mag_tabelle.get(puffer_groesse, 35)
-
-# --- Ergebnis-Anzeige ---
-st.markdown("---")
-st.subheader("📊 Auswertung, Bivalenzpunkt & Komponentenauswahl")
-
-res_col1, res_col2, res_col3 = st.columns(3)
-
-with res_col1:
-    st.metric(label="Gesamt-Heizlast (inkl. WW)", value=f"{gesamt_last_kw:.1f} kW")
-    st.metric(label=f"Empfohlene WP ({baureihe_wahl})", value=empfohlene_wp)
-
-with res_col2:
-    st.metric(label="Ermittelter Bivalenzpunkt", value=f"{biv_empfehlung} °C")
-    st.metric(label="Deckungsgrad bei T_norm", value=f"{deckung_empf}%")
-
-with res_col3:
-    st.metric(label="Pufferspeicher", value=f"{puffer_groesse} Liter")
-    st.metric(label="Trinkwasser-Boiler / FriWa", value=f"{boiler_groesse} Liter")
-
-# --- Diagramm: Heizlast vs. WP-Kennlinie ---
-st.markdown("---")
-st.subheader("📈 Kennlinien-Vergleich (Heizlast vs. Wärmepumpen-Leistung)")
-
-chart_data = pd.DataFrame({
-    "Quellentemperatur (°C)": x_vals,
-    "Gebäude-Heizlast (kW)": [gesamt_last_kw * (t_grenz - x) / (t_grenz - t_norm) for x in x_vals],
-    f"WP Maximalleistung {empfohlene_wp} ({systemtemperatur}°C)": aktive_leistungen
-}).set_index("Quellentemperatur (°C)")
-
-st.line_chart(chart_data)
-
-st.success("Konfiguration, Baureihen-Wahl und Bivalenzpunkt-Berechnung erfolgreich durchgeführt!")
+    boiler_tabelle =
