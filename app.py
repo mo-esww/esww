@@ -93,14 +93,7 @@ st.subheader("1. Gebäudedaten & Parameter")
 col_input1, col_input2 = st.columns(2)
 
 with col_input1:
-    auswahl_modus = st.radio(
-        "Wie möchten Sie die Heizlast ermitteln?",
-        [
-            "1. Über Gebäudestandard & Wohnfläche (Standard)",
-            "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)",
-            "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"
-        ]
-    )
+    auswahl_modus = st.radio("Wie möchten Sie die Heizlast ermitteln?", ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"])
 
     heizlast_watt = 0.0
     if auswahl_modus.startswith("1."):
@@ -131,4 +124,127 @@ with col_input1:
 with col_input2:
     st.markdown("### Klimadaten & Baureihe")
     baureihe_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"])
-    t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_
+    t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_value=-25.0, max_value=0.0, value=-12.0, step=1.0)
+    t_grenz = st.number_input("Heizgrenztemperatur (T_grenz) [°C]", min_value=10.0, max_value=20.0, value=15.0, step=1.0)
+    systemtemperatur = st.selectbox("Systemtemperatur / Vorlauf [°C]", [35, 55])
+    ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"])
+    frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"])
+
+# Warmwasseraufschlag: 500 W pro Person
+ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
+gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
+
+# Wähle die entsprechende Datenbank basierend auf der Baureihe
+aktive_db = kennlinien_db_ahpa if baureihe_wahl == "AHPA" else kennlinien_db_ahpc
+
+# --- Dynamische Bivalenzpunkt-Berechnung innerhalb der gewählten Baureihe ---
+ergebnisse_liste = []
+
+for wp_name, daten in aktive_db.items():
+    wp_leistungen = daten[systemtemperatur]
+    
+    biv_punkt = 99.0
+    leistung_biv = 0.0
+    
+    # Gebäudeheizlast über die Stützpunkte x_vals
+    last_werte = [gesamt_last_kw * (t_grenz - x) / (t_grenz - t_norm) for x in x_vals]
+    differenzen = [wp_l - l_w for wp_l, l_w in zip(wp_leistungen, last_werte)]
+    
+    # Schnittpunkt (Vorzeichenwechsel) suchen
+    for i in range(len(x_vals) - 1):
+        if differenzen[i] * differenzen[i+1] <= 0:
+            x1, x2 = x_vals[i], x_vals[i+1]
+            d1, d2 = differenzen[i], differenzen[i+1]
+            if d1 != d2:
+                biv_punkt = x1 - d1 * (x2 - x1) / (d2 - d1)
+                leistung_biv = wp_leistungen[i] + (biv_punkt - x1) / (x2 - x1) * (wp_leistungen[i+1] - wp_leistungen[i])
+            else:
+                biv_punkt = x1
+                leistung_biv = wp_leistungen[i]
+            break
+            
+    if biv_punkt == 99.0 and differenzen[0] >= 0:
+        biv_punkt = -18.0
+        leistung_biv = wp_leistungen[0]
+    elif biv_punkt == 99.0:
+        biv_punkt = 22.0
+        leistung_biv = wp_leistungen[-1]
+
+    wp_power_tnorm = np.interp(t_norm, x_vals, wp_leistungen)
+    deckungsgrad_norm = (wp_power_tnorm / gesamt_last_kw) * 100
+    
+    ergebnisse_liste.append({
+        "Modell": wp_name,
+        "Bivalenzpunkt [°C]": round(biv_punkt, 1),
+        "Leistung bei Biv. [kW]": round(leistung_biv, 2),
+        "Deckung bei T_norm [%]": round(deckungsgrad_norm, 1),
+        "Leistungen": wp_leistungen,
+        "MaxLeistungBei22C": wp_leistungen[-1]
+    })
+
+df_ergebnisse = pd.DataFrame(ergebnisse_liste)
+
+# Automatische Modell-Auswahl: Bivalenzpunkt soll im Bereich -4°C bis -9°C liegen (-9.0 <= Biv <= -4.0)
+df_geprueft = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=True)
+passende_wps = df_geprueft[(df_geprueft["Bivalenzpunkt [°C]"] >= -9.0) & (df_geprueft["Bivalenzpunkt [°C]"] <= -4.0)]
+
+if not passende_wps.empty:
+    empfohlene_wp = passende_wps.iloc[0]["Modell"]
+    biv_empfehlung = passende_wps.iloc[0]["Bivalenzpunkt [°C]"]
+    aktive_leistungen = passende_wps.iloc[0]["Leistungen"]
+    warnung_aktiv = False
+else:
+    # Fallback, falls keines im Bereich -4 bis -9 liegt: nimm das nächstpassende
+    empfohlene_wp = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=False).iloc[0]["Modell"]
+    row_empf = df_ergebnisse[df_ergebnisse["Modell"] == empfohlene_wp].iloc[0]
+    biv_empfehlung = row_empf["Bivalenzpunkt [°C]"]
+    aktive_leistungen = row_empf["Leistungen"]
+    warnung_aktiv = True
+
+# Hydraulik-Zusatzkomponenten
+puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300}
+puffer_groesse = puffer_tabelle.get(empfohlene_wp, 300)
+
+if frischwasser == "ja":
+    boiler_groesse = 500
+else:
+    boiler_tabelle = {1: 300, 2: 300, 3: 300, 4: 400, 5: 400, 6: 500, 7: 500}
+    boiler_groesse = boiler_tabelle.get(personen, 400)
+
+mag_tabelle = {300: 35, 500: 50, 800: 80, 1000: 80}
+mag_groesse = mag_tabelle.get(puffer_groesse, 35)
+
+# --- Ergebnis-Anzeige ---
+st.markdown("---")
+st.subheader("📊 Auswertung, Bivalenzpunkt & Komponentenauswahl")
+
+if warnung_aktiv:
+    st.warning(f"⚠️ **Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im Bereich von **-4°C bis -9°C**. Das alternative verfügbare Modell wurde gewählt (Bivalenzpunkt liegt bei {biv_empfehlung} °C).")
+
+res_col1, res_col2, res_col3 = st.columns(3)
+
+with res_col1:
+    st.metric(label="Gesamt-Heizlast (inkl. WW)", value=f"{gesamt_last_kw:.1f} kW")
+    st.metric(label=f"Empfohlene WP ({baureihe_wahl})", value=empfohlene_wp)
+
+with res_col2:
+    st.metric(label="Ermittelter Bivalenzpunkt", value=f"{biv_empfehlung} °C")
+    st.metric(label="Ausdehnungsgefäß (MAG)", value=f"{mag_groesse} Liter")
+
+with res_col3:
+    st.metric(label="Pufferspeicher", value=f"{puffer_groesse} Liter")
+    st.metric(label="Trinkwasser-Boiler / FriWa", value=f"{boiler_groesse} Liter")
+
+# --- Diagramm: Heizlast vs. WP-Kennlinie ---
+st.markdown("---")
+st.subheader("📈 Kennlinien-Vergleich (Heizlast vs. Wärmepumpen-Leistung)")
+
+chart_data = pd.DataFrame({
+    "Quellentemperatur (°C)": x_vals,
+    "Gebäude-Heizlast (kW)": [gesamt_last_kw * (t_grenz - x) / (t_grenz - t_norm) for x in x_vals],
+    f"WP Maximalleistung {empfohlene_wp} ({systemtemperatur}°C)": aktive_leistungen
+}).set_index("Quellentemperatur (°C)")
+
+st.line_chart(chart_data)
+
+st.success("Konfiguration, Baureihen-Wahl und Bivalenzpunkt-Zielbereich (-4°C bis -9°C) erfolgreich durchgeführt!")
