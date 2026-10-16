@@ -118,7 +118,7 @@ with col_input1:
 
     else:
         heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5)
-        heizlast_watt =heizlast_kw * 1000.0
+        heizlast_watt = heizlast_kw * 1000.0
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
 
 with col_input2:
@@ -171,91 +171,4 @@ for wp_name, daten in aktive_db.items():
         leistung_biv = wp_leistungen[-1]
 
     wp_power_tnorm = np.interp(t_norm, x_vals, wp_leistungen)
-    deckungsgrad_norm = (wp_power_tnorm / gesamt_last_kw) * 100
-    
-    ergebnisse_liste.append({
-        "Modell": wp_name,
-        "Bivalenzpunkt [°C]": round(biv_punkt, 1),
-        "Leistung bei Biv. [kW]": round(leistung_biv, 2),
-        "Deckung bei T_norm [%]": round(deckungsgrad_norm, 1),
-        "Leistungen": wp_leistungen,
-        "MaxLeistungBei22C": wp_leistungen[-1]
-    })
-
-df_ergebnisse = pd.DataFrame(ergebnisse_liste)
-
-# Sortierung nach Leistung aufsteigend für die Auswahl-Logik
-df_geprueft = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=True)
-passende_wps = df_geprueft[(df_geprueft["Bivalenzpunkt [°C]"] >= -9.0) & (df_geprueft["Bivalenzpunkt [°C]"] <= -4.0)]
-
-warnung_aktiv = False
-if not passende_wps.empty:
-    empfohlene_wp = passende_wps.iloc[0]["Modell"]
-else:
-    # Fallback: Nächstgrößeres Modell (Standard-Auswahl wie bisher)
-    empfohlene_wp = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=False).iloc[0]["Modell"]
-    warnung_aktiv = true
-
-# Daten für die empfohlene Standard-WP ermitteln
-row_empf = df_ergebnisse[df_ergebnisse["Modell"] == empfohlene_wp].iloc[0]
-biv_empfehlung = row_empf["Bivalenzpunkt [°C]"]
-aktive_leistungen = row_empf["Leistungen"]
-
-# Wenn eine Warnung aktiv ist, ermitteln wir zusätzlich das nächstkleinere Modell zur Auswahl
-if warnung_aktiv:
-    # Finde alle Modelle, die nach Leistung kleiner/gleich dem empfohlenen Modell sind
-    staerkere_modelle = df_geprueft[df_geprueft["MaxLeistungBei22C"] <= row_empf["MaxLeistungBei22C"]]
-    # Das nächstkleinere ist das Modell direkt vor dem größten (oder das vorletzte in der sortierten Liste)
-    if len(staerkere_modelle) > 1:
-        alternativ_row = staerkere_modelle.iloc[-2]
-    else:
-        alternativ_row = df_geprueft.iloc[0]
-    
-    alternativ_wp = alternativ_row["Modell"]
-    alternativ_biv = alternativ_row["Bivalenzpunkt [°C]"]
-    alternativ_leistungen = alternativ_row["Leistungen"]
-
-# Hilfsfunktion zur Komponenten-Berechnung für ein gegebenes Modell
-def berechne_komponenten(modell_name):
-    puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300}
-    puffer_gr = puffer_tabelle.get(modell_name, 300)
-
-    if frischwasser == "ja":
-        boiler_gr = 500
-    else:
-        boiler_tabelle = {1: 300, 2: 300, 3: 300, 4: 400, 5: 400, 6: 500, 7: 500}
-        boiler_gr = boiler_tabelle.get(personen, 400)
-
-    mag_tabelle = {300: 35, 500: 50, 800: 80, 1000: 80}
-    mag_gr = mag_tabelle.get(puffer_gr, 35)
-    return puffer_gr, boiler_gr, mag_gr
-
-# --- Ergebnis-Anzeige ---
-st.markdown("---")
-st.subheader("📊 Auswertung, Bivalenzpunkt & Komponentenauswahl")
-
-if warnung_aktiv:
-    st.warning(f"⚠️ **Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im exakten Zielbereich von **-4°C bis -9°C**. Das größte verfügbare Modell (**{empfohlene_wp}**) ergibt einen Bivalenzpunkt von **{biv_empfehlung} °C**.")
-    
-    # Auswahlbox für den Berater / Kunden
-    st.markdown("### 🔀 Modell-Auswahl für das Angebot:")
-    auswahl_optionen = [
-        f"Empfohlenes Max-Modell: {empfohlene_wp} (Biv.: {biv_empfehlung} °C)",
-        f"Nächstkleinere Alternative: {alternativ_wp} (Biv.: {alternativ_biv} °C)"
-    ]
-    gewaehlte_option = st.radio("Welches Modell möchten Sie für die Detailansicht und das Diagramm verwenden?", auswahl_optionen)
-    
-    if "Alternative" in gewaehlte_option:
-        aktives_modell = alternativ_wp
-        aktiver_biv = alternativ_biv
-        aktive_leistungen = alternativ_leistungen
-    else:
-        aktives_modell = empfohlene_wp
-        aktiver_biv = biv_empfehlung
-        aktive_leistungen = row_empf["Leistungen"]
-else:
-    aktives_modell = empfohlene_wp
-    aktiver_biv = biv_empfehlung
-
-# Komponenten für das aktuell ausgewählte Modell berechnen
-puffer_groesse, boiler_groesse, mag_groesse = berechne_komponenten(akt
+    deckungsgrad_norm = (wp_power_tnorm / gesamt_
