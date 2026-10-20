@@ -78,12 +78,4 @@ ARTIKEL_DB = {
     
     # Ausdehnungsgefäße (MAG)
     "MAG_35": {"artnr": "80631", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 35 Liter"},
-    "MAG_50": {"artnr": "80641", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 50 Liter"},
-    "MAG_80": {"artnr": "8065", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 80 Liter"}
-}
-
-# --- Kennlinien-Datenbank für alle Modelle getrennt nach Baureihen ---
-x_vals = list(range(-18, 23, 2))
-
-kennlinien_db_ahpa = {
-    "AHPA 412":
+    "MAG_50": {"artnr": "80641", "bezeichnung": "Membran-Aus
