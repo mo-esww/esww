@@ -198,10 +198,8 @@ with col_input1:
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode3")
 
 with col_input2:
-    st.markdown("### Klimadaten & Baureihe")
-    baureihe_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"], key="baureihe_select")
-    speicherloesung = st.selectbox("Speicherlösung", ["Zweispeicherlösung", "SC490-1", "SC490-2"], key="speicherloesung_select")
-    
+    # 1. Abschnitt: Klimadaten
+    st.markdown("### Klimadaten")
     plz_eingabe = st.text_input("Standort Postleitzahl (PLZ)", value="56410", max_chars=5, key="plz_input")
     t_norm_automatisch = ermittle_t_norm_aus_plz(plz_eingabe)
     
@@ -214,6 +212,13 @@ with col_input2:
 
     t_grenz = st.number_input("Heizgrenztemperatur (T_grenz) [°C]", min_value=10.0, max_value=20.0, value=15.0, step=1.0, key="tgrenz_input")
     systemtemperatur = st.selectbox("Systemtemperatur / Vorlauf [°C]", [35, 55], key="systemtemp_select")
+
+    st.markdown("---")
+
+    # 2. Abschnitt: Baureihe + Zubehör
+    st.markdown("### Baureihe + Zubehör")
+    baureihe_wahl = st.selectbox("Wärmepumpe", ["AHPA", "AHPC"], key="baureihe_select")
+    speicherloesung = st.selectbox("Speicherlösung", ["Zweispeicherlösung", "SC490-1", "SC490-2"], key="speicherloesung_select")
     
     # Bedingte Abfrage: Nur bei Zweispeicherlösung Warmwasser & Frischwasser abfragen
     if speicherloesung == "Zweispeicherlösung":
@@ -445,4 +450,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App inklusive Gefäßanschlusskombination erfolgreich aktualisiert!")
+st.success("App mit getrennten Bereichen (Klimadaten & Baureihe + Zubehör) fehlerfrei geladen!")
