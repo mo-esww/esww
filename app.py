@@ -78,7 +78,7 @@ ARTIKEL_DB = {
     "Zusatzheizung": {"artnr": "738154", "bezeichnung": "Zusatzheizung 3 - 9 KW 1 1/4\""},
     "Umschaltventil_DN25": {"artnr": "8002", "bezeichnung": "3 -Wege Zonen- u. Umschaltventil DN 25 mit ARP Antrieb"},
     "Umschaltventil_DN32": {"artnr": "8002", "bezeichnung": "3 -Wege Zonen- u. Umschaltventil DN 32 mit ARP Antrieb"},
-    # Neue Artikel für AHPA 412, 413, 618
+    # IDU Artikel für AHPA 412, 413, 618
     "IDU5_110": {"artnr": "738187", "bezeichnung": "IDU5-110 (IM110) | inkl. AP440"},
     "IDU6_110": {"artnr": "738185", "bezeichnung": "IDU6-110 (IM110) | inkl. AP440"}
 }
@@ -230,7 +230,7 @@ else:
         heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5, key="heizlast_kw_input")
     with col_v2:
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode3")
-    heizlast_watt = heizlast_kw * 1000.0
+    heizlast_watt = Heizlast_kw * 1000.0 if 'heizlast_kw' in locals() else heizlast_kw * 1000.0
 
 st.markdown("---")
 
@@ -406,6 +406,11 @@ else:
     aktives_modell = empfohlene_wp
     aktiver_biv = biv_empfehlung
     aktive_leistungen = row_empf["Leistungen"]
+
+# --- SCHUTZ-LOGIK: AHPA 722 & 1030 erlauben keinen Kompaktspeicher ---
+if aktives_modell in ["AHPA 722", "AHPA 1030"] and speicherloesung.startswith("SC490"):
+    st.warning(f"⚠️ Für das Modell **{aktives_modell}** ist kein Kompaktspeicher (SC490) zulässig. Die Speicherlösung wurde automatisch auf **Ein-/Zweispeicherlösung** zurückgesetzt.")
+    speicherloesung = "Ein-/Zweispeicherlösung"
 
 puffer_groesse, boiler_groesse, mag_groesse = berechne_komponenten(aktives_modell)
 
@@ -638,4 +643,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App erfolgreich aktualisiert: IDU5 / IDU6 Artikel für AHPA 412, 413, 618 hinzugefügt!")
+st.success("App aktualisiert: Kompaktspeicher-Sperre für AHPA 722 & 1030 aktiv!")
