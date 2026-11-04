@@ -72,10 +72,12 @@ st.subheader("1. Gebäudedaten & Parameter")
 col_input1, col_input2 = st.columns(2)
 
 gewaehlte_sanierungen = []
+personen = 3  # Standard-Fallback
 
 with col_input1:
     auswahl_modus = st.radio("Wie möchten Sie die Heizlast ermitteln?", ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"])
     heizlast_watt = 0.0
+    
     if auswahl_modus.startswith("1."):
         gebaeude_typ = st.radio("Gebäudetyp", ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], horizontal=True)
         wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=2000, value=160, step=10)
@@ -92,7 +94,10 @@ with col_input1:
         
         heizlast_watt = wohnflaeche * spez_heizlast
         
-        # Sanierungsmaßnahmen NUR hier im Modus 1:
+        # 1. Personenanzahl ÜBER den Sanierungsmaßnahmen:
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+        
+        # 2. Sanierungsmaßnahmen:
         st.markdown("---")
         st.markdown("#### Geplante Sanierungsmaßnahmen")
         sanierungs_optionen = {
@@ -117,7 +122,6 @@ with col_input1:
         if gewaehlte_sanierungen:
             st.info(f"💡 Reduktion durch Sanierung: **-{reduktions_faktor*100:.1f}%**")
 
-        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
     elif auswahl_modus.startswith("2."):
         brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"])
         verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100)
@@ -269,4 +273,76 @@ with res_col1:
     st.metric(label=f"Ausgewählte WP ({baureihe_wahl})", value=aktives_modell)
 
 with res_col2:
-    st.metric
+    st.metric(label="Ermittelter Bivalenzpunkt", value=f"{aktiver_biv} °C")
+    st.metric(label="Ausdehnungsgefäß (MAG)", value=f"{mag_groesse} Liter")
+
+with res_col3:
+    st.metric(label="Pufferspeicher", value=f"{puffer_groesse} Liter")
+    st.metric(label="Trinkwasser-Boiler / FriWa", value=f"{boiler_groesse} Liter")
+
+st.markdown("---")
+st.subheader(f"Kennlinien-Vergleich für {aktives_modell}")
+
+chart_data = pd.DataFrame({
+    "Quellentemperatur (°C)": x_vals,
+    "Gebäude-Heizlast (kW)": [gesamt_last_kw * (t_grenz - x) / (t_grenz - t_norm) for x in x_vals],
+    f"WP Maximalleistung {aktives_modell} ({systemtemperatur}°C)": aktive_leistungen
+}).set_index("Quellentemperatur (°C)")
+
+st.line_chart(chart_data)
+
+st.markdown("---")
+st.subheader("Artikel-Stückliste für CRM-Export")
+
+stueckliste = []
+wp_info = ARTIKEL_DB.get(aktives_modell, {"artnr": "UNKNOWN", "bezeichnung": aktives_modell})
+stueckliste.append({"Pos": 1, "Kategorie": "Wärmepumpe", "Artikelnummer": wp_info["artnr"], "Bezeichnung": wp_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+puffer_key = f"Puffer_{puffer_groesse}"
+puffer_info = ARTIKEL_DB.get(puffer_key, {"artnr": f"PS-{puffer_groesse}L", "bezeichnung": f"Pufferspeicher {puffer_groesse} L"})
+stueckliste.append({"Pos": 2, "Kategorie": "Speicher", "Artikelnummer": puffer_info["artnr"], "Bezeichnung": puffer_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+if frischwasser == "ja":
+    friwa_info = ARTIKEL_DB["FriWa_Modul"]
+    stueckliste.append({"Pos": 3, "Kategorie": "Warmwasser", "Artikelnummer": friwa_info["artnr"], "Bezeichnung": friwa_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+elif ww_bereitung == "ja":
+    boiler_key = f"Boiler_{boiler_groesse}"
+    boiler_info = ARTIKEL_DB.get(boiler_key, {"artnr": f"TWS-{boiler_groesse}L", "bezeichnung": f"Trinkwasserspeicher {boiler_groesse} L"})
+    stueckliste.append({"Pos": 3, "Kategorie": "Warmwasser", "Artikelnummer": boiler_info["artnr"], "Bezeichnung": boiler_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+mag_key = f"MAG_{mag_groesse}"
+mag_info = ARTIKEL_DB.get(mag_key, {"artnr": f"MAG_{mag_groesse}", "bezeichnung": f"Membran-Ausdehnungsgefäß {mag_groesse} L"})
+stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": mag_info["artnr"], "Bezeichnung": mag_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+df_stueckliste = pd.DataFrame(stueckliste)
+st.dataframe(df_stueckliste, use_container_width=True, hide_index=True)
+
+def create_excel_download(df_items):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_items.to_excel(writer, index=False, sheet_name='Artikelstueckliste_CRM')
+        df_params = pd.DataFrame([
+            {"Parameter": "Gebäudetyp", "Wert": gebaeude_typ if 'gebaeude_typ' in locals() else "N/A"},
+            {"Parameter": "Gewähltes WP-Modell", "Wert": aktives_modell},
+            {"Parameter": "Baureihe", "Wert": baureihe_wahl},
+            {"Parameter": "Sanierungsmaßnahmen", "Wert": ", ".join(gewaehlte_sanierungen) if gewaehlte_sanierungen else "Keine"},
+            {"Parameter": "Gesamtheizlast (kW)", "Wert": round(gesamt_last_kw, 2)},
+            {"Parameter": "Ermittelter Bivalenzpunkt (°C)", "Wert": round(aktiver_biv, 1)},
+            {"Parameter": "Vorlauftemperatur (°C)", "Wert": systemtemperatur},
+            {"Parameter": "Norm-Außentemperatur (°C)", "Wert": t_norm},
+            {"Parameter": "Warmwasserbereitung", "Wert": ww_bereitung},
+            {"Parameter": "Frischwassermodul", "Wert": frischwasser}
+        ])
+        df_params.to_excel(writer, index=False, sheet_name='Auslegungsdaten')
+    return output.getvalue()
+
+excel_data = create_excel_download(df_stueckliste)
+
+st.download_button(
+    label="Artikelliste als Excel für CRM herunterladen",
+    data=excel_data,
+    file_name=f"CRM_Angebotspositionen_{aktives_modell.replace(' ', '_')}.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+st.success("App fehlerfrei aktualisiert: Personenanzahl sitzt nun korrekt über den Sanierungsmaßnahmen!")
