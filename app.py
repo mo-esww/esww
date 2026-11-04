@@ -64,4 +64,209 @@ kennlinien_db_ahpa = {
 
 kennlinien_db_ahpc = {
     "AHPC 27": {35: [4.7, 5.0, 5.3, 5.7, 6.1, 6.5, 7.0, 7.5, 8.0, 7.9, 7.9, 8.3, 8.7, 9.1, 9.5, 10.0, 10.1, 10.3, 10.4, 10.6, 10.7], 55: [4.5, 4.8, 5.1, 5.5, 5.9, 6.3, 6.8, 7.0, 7.1, 7.1, 7.1, 7.5, 8.0, 8.4, 8.8, 9.0, 9.2, 9.3, 9.5, 9.6, 9.7]},
-    "AHPC 412": {35:
+    "AHPC 412": {35: [7.6, 8.0, 8.5, 9.0, 9.5, 10.0, 10.6, 11.2, 11.8, 12.5, 13.0, 13.5, 14.2, 14.9, 15.6, 16.5, 16.8, 17.1, 17.4, 17.7, 18.0], 55: [7.2, 7.6, 8.0, 8.5, 9.0, 9.5, 10.1, 10.8, 11.5, 12.2, 12.5, 13.1, 13.8, 14.5, 15.2, 16.0, 16.3, 16.6, 16.9, 17.2, 17.4]}
+}
+
+# --- Eingabebereich ---
+st.subheader("1. Gebäudedaten & Parameter")
+col_input1, col_input2 = st.columns(2)
+
+gewaehlte_sanierungen = []
+
+with col_input1:
+    auswahl_modus = st.radio("Wie möchten Sie die Heizlast ermitteln?", ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"])
+    heizlast_watt = 0.0
+    if auswahl_modus.startswith("1."):
+        gebaeude_typ = st.radio("Gebäudetyp", ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], horizontal=True)
+        wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=2000, value=160, step=10)
+        baujahr = st.slider("Baujahr / Dämmstandard", min_value=1930, max_value=2026, value=1980, step=1)
+        
+        stuetz_jahre = [1930, 1958, 1968, 1977, 1983, 1994, 2001, 2008, 2015, 2026]
+        if gebaeude_typ.startswith("Einfamilienhaus"):
+            stuetz_lasten = [160.0, 160.0, 140.0, 110.0, 95.0, 75.0, 60.0, 40.0, 30.0, 20.0]
+        else:
+            stuetz_lasten = [120.0, 120.0, 110.0, 90.0, 75.0, 60.0, 45.0, 35.0, 25.0, 15.0]
+            
+        spez_heizlast = np.interp(baujahr, stuetz_jahre, stuetz_lasten)
+        st.caption(f"Angesetzte spezifische Heizlast ({gebaeude_typ.split()[0]}): **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
+        
+        heizlast_watt = wohnflaeche * spez_heizlast
+        
+        # Sanierungsmaßnahmen NUR hier im Modus 1:
+        st.markdown("---")
+        st.markdown("#### Geplante Sanierungsmaßnahmen")
+        sanierungs_optionen = {
+            "Fenster erneuert (2-fach Wärmeschutzverglasung)": 0.075,
+            "Fenster erneuert (3-fach Wärmeschutzverglasung)": 0.115,
+            "Kellerdeckendämmung (Ca. 6–12 cm)": 0.055,
+            "Oberste Geschossdecke gedämmt (Ca. 14–24 cm)": 0.085,
+            "Dachdämmung (Zwischen-/Aufsparrendämmung)": 0.14,
+            "Außenwanddämmung (Ca. 12–16 cm WDVS)": 0.20,
+            "Rohrleitungen gedämmt (im unheiz. Bereich)": 0.02,
+            "Lüftungsanlage mit Wärmerückgewinnung": 0.10
+        }
+        gewaehlte_sanierungen = st.multiselect(
+            "Wählen Sie durchgeführte oder geplante Sanierungsmaßnahmen:",
+            options=list(sanierungs_optionen.keys()),
+            default=[]
+        )
+        reduktions_faktor = sum([sanierungs_optionen[m] for m in gewaehlte_sanierungen])
+        reduktions_faktor = min(reduktions_faktor, 0.60)
+        heizlast_watt = heizlast_watt * (1.0 - reduktions_faktor)
+        
+        if gewaehlte_sanierungen:
+            st.info(f"💡 Reduktion durch Sanierung: **-{reduktions_faktor*100:.1f}%**")
+
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+    elif auswahl_modus.startswith("2."):
+        brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"])
+        verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100)
+        if "Heizöl" in brennstoff_art:
+            jaehrliche_waermearbeit = verbrauch * 10 * 0.85
+        elif "Erdgas" in brennstoff_art:
+            jaehrliche_waermearbeit = verbrauch * 0.85
+        else:
+            jaehrliche_waermearbeit = verbrauch * 6.5 * 0.85
+        heizlast_watt = (jaehrliche_waermearbeit / 2000) * 1000
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+    else:
+        heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5)
+        heizlast_watt = heizlast_kw * 1000.0
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+
+with col_input2:
+    st.markdown("### Klimadaten & Baureihe")
+    baureihe_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"])
+    t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_value=-25.0, max_value=0.0, value=-12.0, step=1.0)
+    t_grenz = st.number_input("Heizgrenztemperatur (T_grenz) [°C]", min_value=10.0, max_value=20.0, value=15.0, step=1.0)
+    systemtemperatur = st.selectbox("Systemtemperatur / Vorlauf [°C]", [35, 55])
+    ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"])
+    frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"])
+
+ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
+gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
+
+aktive_db = kennlinien_db_ahpa if baureihe_wahl == "AHPA" else kennlinien_db_ahpc
+ergebnisse_liste = []
+
+for wp_name, daten in aktive_db.items():
+    wp_leistungen = daten[systemtemperatur]
+    biv_punkt = 99.0
+    leistung_biv = 0.0
+    last_werte = [gesamt_last_kw * (t_grenz - x) / (t_grenz - t_norm) for x in x_vals]
+    differenzen = [wp_l - l_w for wp_l, l_w in zip(wp_leistungen, last_werte)]
+    
+    for i in range(len(x_vals) - 1):
+        if differenzen[i] * differenzen[i+1] <= 0:
+            x1, x2 = x_vals[i], x_vals[i+1]
+            d1, d2 = differenzen[i], differenzen[i+1]
+            if d1 != d2:
+                biv_punkt = x1 - d1 * (x2 - x1) / (d2 - d1)
+                leistung_biv = wp_leistungen[i] + (biv_punkt - x1) / (x2 - x1) * (wp_leistungen[i+1] - wp_leistungen[i])
+            else:
+                biv_punkt = x1
+                leistung_biv = wp_leistungen[i]
+            break
+            
+    if biv_punkt == 99.0 and differenzen[0] >= 0:
+        biv_punkt = -18.0
+        leistung_biv = wp_leistungen[0]
+    elif biv_punkt == 99.0:
+        biv_punkt = 22.0
+        leistung_biv = wp_leistungen[-1]
+
+    wp_power_tnorm = np.interp(t_norm, x_vals, wp_leistungen)
+    deckungsgrad_norm = (wp_power_tnorm / gesamt_last_kw) * 100
+    
+    ergebnisse_liste.append({
+        "Modell": wp_name,
+        "Bivalenzpunkt [°C]": round(biv_punkt, 1),
+        "Leistung bei Biv. [kW]": round(leistung_biv, 2),
+        "Deckung bei T_norm [%]": round(deckungsgrad_norm, 1),
+        "Leistungen": wp_leistungen,
+        "MaxLeistungBei22C": wp_leistungen[-1]
+    })
+
+df_ergebnisse = pd.DataFrame(ergebnisse_liste)
+df_geprueft = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=True)
+passende_wps = df_geprueft[(df_geprueft["Bivalenzpunkt [°C]"] >= -9.0) & (df_geprueft["Bivalenzpunkt [°C]"] <= -4.0)]
+
+warnung_aktiv = False
+if not passende_wps.empty:
+    empfohlene_wp = passende_wps.iloc[0]["Modell"]
+else:
+    empfohlene_wp = df_geprueft.iloc[0]["Modell"]
+    warnung_aktiv = True
+
+row_empf = df_ergebnisse[df_ergebnisse["Modell"] == empfohlene_wp].iloc[0]
+biv_empfehlung = row_empf["Bivalenzpunkt [°C]"]
+aktive_leistungen = row_empf["Leistungen"]
+
+alternativ_wp = ""
+alternativ_biv = 0.0
+alternativ_leistungen = []
+
+if warnung_aktiv:
+    staerkere_modelle = df_geprueft[df_geprueft["MaxLeistungBei22C"] >= row_empf["MaxLeistungBei22C"]]
+    if len(staerkere_modelle) > 1:
+        alternativ_row = staerkere_modelle.iloc[1]
+    else:
+        alternativ_row = df_geprueft.iloc[-1]
+    
+    alternativ_wp = alternativ_row["Modell"]
+    alternativ_biv = alternativ_row["Bivalenzpunkt [°C]"]
+    alternativ_leistungen = alternativ_row["Leistungen"]
+
+def berechne_komponenten(modell_name):
+    puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300}
+    puffer_gr = puffer_tabelle.get(modell_name, 300)
+
+    if frischwasser == "ja":
+        boiler_gr = 500
+    else:
+        boiler_tabelle = {1: 300, 2: 300, 3: 300, 4: 400, 5: 400, 6: 500, 7: 500}
+        boiler_gr = boiler_tabelle.get(personen, 400)
+
+    mag_tabelle = {300: 35, 500: 50, 800: 80, 1000: 80}
+    mag_gr = mag_tabelle.get(puffer_gr, 35)
+    return puffer_gr, boiler_gr, mag_gr
+
+st.markdown("---")
+st.subheader("2. Auswertung, Bivalenzpunkt & Komponentenauswahl")
+
+if warnung_aktiv:
+    st.warning(f"**Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im Zielbereich von **-4°C bis -9°C**. Das kleinste verfügbare Modell (**{empfohlene_wp}**) wurde als Empfehlung gewählt.")
+    st.markdown("### Modell-Auswahl für das Angebot:")
+    
+    auswahl_optionen = [
+        f"Empfohlenes Klein-Modell: {empfohlene_wp} (Biv.: {biv_empfehlung} °C)",
+        f"Nächstgrößere Alternative: {alternativ_wp} (Biv.: {alternativ_biv} °C)"
+    ]
+    
+    gewaehlte_option = st.radio(
+        "Welches Modell möchten Sie für die Detailansicht und das Diagramm verwenden?",
+        auswahl_optionen
+    )
+    
+    if "Alternative" in gewaehlte_option:
+        aktives_modell = alternativ_wp
+        aktiver_biv = alternativ_biv
+        aktive_leistungen = alternativ_leistungen
+    else:
+        aktives_modell = empfohlene_wp
+        aktiver_biv = biv_empfehlung
+        aktive_leistungen = row_empf["Leistungen"]
+else:
+    aktives_modell = empfohlene_wp
+    aktiver_biv = biv_empfehlung
+    aktive_leistungen = row_empf["Leistungen"]
+
+puffer_groesse, boiler_groesse, mag_groesse = berechne_komponenten(aktives_modell)
+
+res_col1, res_col2, res_col3 = st.columns(3)
+with res_col1:
+    st.metric(label="Gesamt-Heizlast (inkl. WW)", value=f"{gesamt_last_kw:.1f} kW")
+    st.metric(label=f"Ausgewählte WP ({baureihe_wahl})", value=aktives_modell)
+
+with res_col2:
+    st.metric
