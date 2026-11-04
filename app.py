@@ -50,7 +50,8 @@ ARTIKEL_DB = {
     "SC490_2": {"artnr": "738183", "bezeichnung": "Kompaktspeicher-Lösung SC490-2"},
     "MAG_35": {"artnr": "80631", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 35 Liter"},
     "MAG_50": {"artnr": "80641", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 50 Liter"},
-    "MAG_80": {"artnr": "8065", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 80 Liter"}
+    "MAG_80": {"artnr": "8065", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 80 Liter"},
+    "Anschlusskombi": {"artnr": "80481", "bezeichnung": "Gefäßanschlusskombination für MAGs bis 50L inkl. Isolierung"}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -401,9 +402,15 @@ else:
         boiler_info = ARTIKEL_DB.get(boiler_key, {"artnr": f"TWS-{boiler_groesse}L", "bezeichnung": f"Trinkwasserspeicher {boiler_groesse} L"})
         stueckliste.append({"Pos": 3, "Kategorie": "Warmwasser", "Artikelnummer": boiler_info["artnr"], "Bezeichnung": boiler_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
+# MAG hinzufügen
 mag_key = f"MAG_{mag_groesse}"
 mag_info = ARTIKEL_DB.get(mag_key, {"artnr": f"MAG_{mag_groesse}", "bezeichnung": f"Membran-Ausdehnungsgefäß {mag_groesse} L"})
 stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": mag_info["artnr"], "Bezeichnung": mag_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+# Wenn MAG <= 50 Liter, Gefäßanschlusskombination automatisch hinzufügen
+if mag_groesse <= 50:
+    kombi_info = ARTIKEL_DB["Anschlusskombi"]
+    stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": kombi_info["artnr"], "Bezeichnung": kombi_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
 df_stueckliste = pd.DataFrame(stueckliste)
 st.dataframe(df_stueckliste, use_container_width=True, hide_index=True)
@@ -438,4 +445,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App fehlerfrei geladen!")
+st.success("App inklusive Gefäßanschlusskombination erfolgreich aktualisiert!")
