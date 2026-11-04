@@ -121,7 +121,7 @@ def ermittle_t_norm_aus_plz(plz_str):
     }
     return zonen_fallback.get(ziffer, -12.0)
 
-# --- Eingabebereich (Übersichtlich untereinander / geordnet) ---
+# --- Eingabebereich ---
 st.subheader("1. Gebäudedaten & Parameter")
 
 auswahl_modus = st.radio(
@@ -233,11 +233,10 @@ col_z1, col_z2 = st.columns(2)
 with col_z1:
     baureihe_wahl = st.selectbox("Wärmepumpe", ["AHPA", "AHPC"], key="baureihe_select")
 with col_z2:
-    speicherloesung = st.selectbox("Speicherlösung", ["Zweispeicherlösung", "SC490-1", "SC490-2"], key="speicherloesung_select")
+    speicherloesung = st.selectbox("Speicherlösung", ["Ein-/Zweispeicherlösung", "SC490-1", "SC490-2"], key="speicherloesung_select")
 
-# Bedingte Abfrage: Nur bei Zweispeicherlösung Warmwasser & Frischwasser abfragen
 pumpengruppen_liste = []
-if speicherloesung == "Zweispeicherlösung":
+if speicherloesung == "Ein-/Zweispeicherlösung":
     col_w1, col_w2 = st.columns(2)
     with col_w1:
         ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"], key="ww_bereit_select")
@@ -253,10 +252,11 @@ if speicherloesung == "Zweispeicherlösung":
             typ = st.selectbox(f"Pumpengruppe {i}", ["gemischt", "ungemischt"], key=f"pg_typ_{i}")
             pumpengruppen_liste.append(typ)
 else:
-    ww_bereitung = "nein"
+    ww_bereitung = "ja"  # Bei SC490 wird Warmwasser standardmäßig mit eingerechnet
     frischwasser = "nein"
 
 # --- Ab hier Haupt-Flow ---
+# 500W pro Person wird nun unabhängig von der Speicherlösung (auch bei SC490) für die Warmwasserbereitung aufgeschlagen
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
 gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
 
@@ -385,7 +385,7 @@ puffer_groesse, boiler_groesse, mag_groesse = berechne_komponenten(aktives_model
 
 res_col1, res_col2, res_col3 = st.columns(3)
 with res_col1:
-    st.metric(label="Gesamt-Heizlast", value=f"{gesamt_last_kw:.1f} kW")
+    st.metric(label="Gesamt-Heizlast (inkl. WW)", value=f"{gesamt_last_kw:.1f} kW")
     st.metric(label=f"Ausgewählte WP ({baureihe_wahl})", value=aktives_modell)
 
 with res_col2:
@@ -445,8 +445,8 @@ if mag_groesse <= 50:
     kombi_info = ARTIKEL_DB["Anschlusskombi"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": kombi_info["artnr"], "Bezeichnung": kombi_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
-# Pumpengruppen zur Stückliste hinzufügen (nur bei Zweispeicherlösung)
-if speicherloesung == "Zweispeicherlösung":
+# Pumpengruppen zur Stückliste hinzufügen (nur bei Ein-/Zweispeicherlösung)
+if speicherloesung == "Ein-/Zweispeicherlösung":
     for idx, pg_typ in enumerate(pumpengruppen_liste, 1):
         pg_key = f"Pumpengruppe_{pg_typ}"
         pg_info = ARTIKEL_DB[pg_key]
@@ -474,12 +474,11 @@ def create_excel_download(df_items):
             {"Parameter": "Standort PLZ", "Wert": plz_eingabe if 'plz_eingabe' in locals() else "N/A"},
             {"Parameter": "Norm-Außentemperatur (°C)", "Wert": t_norm},
             {"Parameter": "Sanierungsmaßnahmen", "Wert": ", ".join(gewaehlte_sanierungen) if gewaehlte_sanierungen else "Keine"},
-            {"Parameter": "Gesamtheizlast (kW)", "Wert": round(gesamt_last_kw, 2)},
+            {"Parameter": "Gesamtheizlast inkl. WW (kW)", "Wert": round(gesamt_last_kw, 2)},
             {"Parameter": "Ermittelter Bivalenzpunkt (°C)", "Wert": round(aktiver_biv, 1)},
             {"Parameter": "Vorlauftemperatur (°C)", "Wert": systemtemperatur},
-            {"Parameter": "Warmwasserbereitung", "Wert": ww_bereitung},
-            {"Parameter": "Frischwassermodul", "Wert": frischwasser},
-            {"Parameter": "Pumpengruppen Konfiguration", "Wert": ", ".join([f'PG {i+1}: {t}' for i, t in enumerate(pumpengruppen_liste)]) if speicherloesung == "Zweispeicherlösung" else "N/A"}
+            {"Parameter": "Anzahl Personen", "Wert": personen},
+            {"Parameter": "Pumpengruppen Konfiguration", "Wert": ", ".join([f'PG {i+1}: {t}' for i, t in enumerate(pumpengruppen_liste)]) if speicherloesung == "Ein-/Zweispeicherlösung" else "N/A"}
         ])
         df_params.to_excel(writer, index=False, sheet_name='Auslegungsdaten')
     return output.getvalue()
@@ -493,4 +492,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App mit neuem Layout und bedingten Pumpengruppen fehlerfrei geladen!")
+st.success("App fehlerfrei aktualisiert!")
