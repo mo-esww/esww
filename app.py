@@ -77,7 +77,10 @@ ARTIKEL_DB = {
     "Regelungsset": {"artnr": "738180", "bezeichnung": "Regelungsset AP 440 + IM 110"},
     "Zusatzheizung": {"artnr": "738154", "bezeichnung": "Zusatzheizung 3 - 9 KW 1 1/4\""},
     "Umschaltventil_DN25": {"artnr": "8002", "bezeichnung": "3 -Wege Zonen- u. Umschaltventil DN 25 mit ARP Antrieb"},
-    "Umschaltventil_DN32": {"artnr": "8002", "bezeichnung": "3 -Wege Zonen- u. Umschaltventil DN 32 mit ARP Antrieb"}
+    "Umschaltventil_DN32": {"artnr": "8002", "bezeichnung": "3 -Wege Zonen- u. Umschaltventil DN 32 mit ARP Antrieb"},
+    # Neue Artikel für AHPA 412, 413, 618
+    "IDU5_110": {"artnr": "738187", "bezeichnung": "IDU5-110 (IM110) | inkl. AP440"},
+    "IDU6_110": {"artnr": "738185", "bezeichnung": "IDU6-110 (IM110) | inkl. AP440"}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -377,7 +380,7 @@ st.markdown("---")
 st.subheader("4. Auswertung, Bivalenzpunkt & Komponentenauswahl")
 
 if warnung_aktiv:
-    st.warning(f"**Hinweis:** Keines der Modelle aus lauer Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im Zielbereich von **-4°C bis -9°C**. Das kleinste verfügbare Modell (**{empfohlene_wp}**) wurde als Empfehlung gewählt.")
+    st.warning(f"**Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im Zielbereich von **-4°C bis -9°C**. Das kleinste verfügbare Modell (**{empfohlene_wp}**) wurde als Empfehlung gewählt.")
     st.markdown("### Modell-Auswahl für das Angebot:")
     
     auswahl_optionen = [
@@ -479,6 +482,15 @@ if baureihe_wahl == "AHPA":
         # 3-Wege Umschaltventil DN 32 für AHPA 722 / 1030
         vent_info = ARTIKEL_DB["Umschaltventil_DN32"]
         stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": vent_info["artnr"], "Bezeichnung": vent_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+    # IDU5 / IDU6 Artikel für AHPA 412, 413, 618 bei Ein-/Zweispeicherlösung
+    if aktives_modell in ["AHPA 412", "AHPA 413", "AHPA 618"] and speicherloesung == "Ein-/Zweispeicherlösung":
+        if ww_bereitung == "nein":
+            idu5_info = ARTIKEL_DB["IDU5_110"]
+            stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": idu5_info["artnr"], "Bezeichnung": idu5_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        elif ww_bereitung == "ja":
+            idu6_info = ARTIKEL_DB["IDU6_110"]
+            stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": idu6_info["artnr"], "Bezeichnung": idu6_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
 elif baureihe_wahl == "AHPC":
     sockel_info = ARTIKEL_DB["Sockel_AHPC"]
@@ -626,4 +638,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App aktualisiert: Regelungsset und Ventil bei AHPC 27/412 mit SC490 ausgeblendet!")
+st.success("App erfolgreich aktualisiert: IDU5 / IDU6 Artikel für AHPA 412, 413, 618 hinzugefügt!")
