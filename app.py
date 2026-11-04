@@ -65,7 +65,9 @@ ARTIKEL_DB = {
     "Verdampfer_670414": {"artnr": "670414", "bezeichnung": "Verdampferabdeckung für AHPA 413 & 618"},
     "Verdampfer_673140": {"artnr": "673140", "bezeichnung": "Verdampferabdeckung für AHPA 722 & 1030"},
     # Wärmepumpensockel (AHPC)
-    "Sockel_AHPC": {"artnr": "674080", "bezeichnung": "Wärmepumpensockel AHPC 27 / 412"}
+    "Sockel_AHPC": {"artnr": "674080", "bezeichnung": "Wärmepumpensockel AHPC 27 / 412"},
+    # Geräuschentkoppler (für jede WP)
+    "Geraeuschentkoppler": {"artnr": "644241", "bezeichnung": "Geräuschentkoppler"}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -429,6 +431,10 @@ stueckliste = []
 wp_info = ARTIKEL_DB.get(aktives_modell, {"artnr": "UNKNOWN", "bezeichnung": aktives_modell})
 stueckliste.append({"Pos": 1, "Kategorie": "Wärmepumpe", "Artikelnummer": wp_info["artnr"], "Bezeichnung": wp_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
+# Geräuschentkoppler für jede Wärmepumpe hinzufügen
+entkoppler_info = ARTIKEL_DB["Geraeuschentkoppler"]
+stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": entkoppler_info["artnr"], "Bezeichnung": entkoppler_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
 # Baureihen-spezifisches Zubehör hinzufügen
 if baureihe_wahl == "AHPA":
     if aktives_modell == "AHPA 412":
@@ -508,7 +514,7 @@ if speicherloesung == "Ein-/Zweispeicherlösung":
                 "Pos": len(stueckliste) + 1,
                 "Kategorie": "Pumpengruppe",
                 "Artikelnummer": stell_info["artnr"],
-                "Bezeichnung": f"Stellmotor für Mischventile (für PG {idx})",
+                "Bezeichnung": f"Stellmotor für Mischventile (for PG {idx})",
                 "Menge": 1,
                 "Einheit": "Stk"
             })
@@ -576,4 +582,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App mit AHPC-Wärmepumpensockel erfolgreich aktualisiert!")
+st.success("App mit Geräuschentkoppler erfolgreich aktualisiert!")
