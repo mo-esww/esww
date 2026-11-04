@@ -163,7 +163,7 @@ personen = 3
 if auswahl_modus.startswith("1."):
     gebaeude_typ = st.radio(
         "Gebäudetyp", 
-        ["Ein-/Zweispeicherlösung (EFH)", "Mehrfamilienhaus (MFH)"], 
+        ["Ein-/Zweifamilienhaus", "Mehrfamilienhaus (MFH)"], 
         horizontal=True,
         key="gebaeude_typ_radio"
     )
@@ -175,13 +175,13 @@ if auswahl_modus.startswith("1."):
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode1")
     
     stuetz_jahre = [1930, 1958, 1968, 1977, 1983, 1994, 2001, 2008, 2015, 2026]
-    if gebaeude_typ.startswith("Ein-/Zweispeicherlösung"):
+    if gebaeude_typ.startswith("Ein-/Zweifamilienhaus"):
         stuetz_lasten = [160.0, 160.0, 140.0, 110.0, 95.0, 75.0, 60.0, 40.0, 30.0, 20.0]
     else:
         stuetz_lasten = [120.0, 120.0, 110.0, 90.0, 75.0, 60.0, 45.0, 35.0, 25.0, 15.0]
         
     spez_heizlast = np.interp(baujahr, stuetz_jahre, stuetz_lasten)
-    st.caption(f"Angesetzte spezifische Heizlast ({gebaeude_typ.split()[0]}): **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
+    st.caption(f"Angesetzte spezifische Heizlast ({gebaeude_typ}): **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
     
     heizlast_watt = wohnflaeche * spez_heizlast
     
@@ -230,7 +230,7 @@ else:
         heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5, key="heizlast_kw_input")
     with col_v2:
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode3")
-    heizlast_watt = Heizlast_kw * 1000.0 if 'heizlast_kw' in locals() else heizlast_kw * 1000.0
+    heizlast_watt = heizlast_kw * 1000.0
 
 st.markdown("---")
 
@@ -409,7 +409,7 @@ else:
 
 # --- SCHUTZ-LOGIK: AHPA 722 & 1030 erlauben keinen Kompaktspeicher ---
 if aktives_modell in ["AHPA 722", "AHPA 1030"] and speicherloesung.startswith("SC490"):
-    st.warning(f"⚠️ Für das Modell **{aktives_modell}** ist kein Kompaktspeicher (SC490) zulässig. Die Speicherlösung wurde automatisch auf **Ein-/Zweispeicherlösung** zurückgesetzt.")
+    st.warning(f"⚠️ Für das Modell **{aktives_modell}** ist kein Kompaktspeicher (SC490) zulässig. Die Speicherlösung wurde automatisch auf **Ein-/Zweifamilienhaus** zurückgesetzt.")
     speicherloesung = "Ein-/Zweispeicherlösung"
 
 puffer_groesse, boiler_groesse, mag_groesse = berechne_komponenten(aktives_modell)
@@ -643,4 +643,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App aktualisiert: Kompaktspeicher-Sperre für AHPA 722 & 1030 aktiv!")
+st.success("App aktualisiert: Gebäudetyp auf 'Ein-/Zweifamilienhaus' geändert!")
