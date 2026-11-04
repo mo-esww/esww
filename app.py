@@ -301,7 +301,7 @@ def berechne_komponenten(modell_name):
     if speicherloesung.startswith("SC490"):
         puffer_gr = 0
         boiler_gr = 0
-        mag_gr = 35
+        mag_gr = 50  # Fix 50 Liter bei SC490-1 und SC490-2
     else:
         puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300}
         puffer_gr = puffer_tabelle.get(modell_name, 300)
@@ -438,4 +438,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App fehlerfrei geladen!")
+st.success("App fehlerfrei geladen und MAG-Regelung für SC490 aktualisiert!")
