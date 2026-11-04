@@ -75,13 +75,22 @@ gewaehlte_sanierungen = []
 personen = 3  # Standard-Fallback
 
 with col_input1:
-    auswahl_modus = st.radio("Wie möchten Sie die Heizlast ermitteln?", ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"])
+    auswahl_modus = st.radio(
+        "Wie möchten Sie die Heizlast ermitteln?", 
+        ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"],
+        key="auswahl_modus_radio"
+    )
     heizlast_watt = 0.0
     
     if auswahl_modus.startswith("1."):
-        gebaeude_typ = st.radio("Gebäudetyp", ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], horizontal=True)
-        wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=2000, value=160, step=10)
-        baujahr = st.slider("Baujahr / Dämmstandard", min_value=1930, max_value=2026, value=1980, step=1)
+        gebaeude_typ = st.radio(
+            "Gebäudetyp", 
+            ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], 
+            horizontal=True,
+            key="gebaeude_typ_radio"
+        )
+        wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=2000, value=160, step=10, key="wohnflaeche_input")
+        baujahr = st.slider("Baujahr / Dämmstandard", min_value=1930, max_value=2026, value=1980, step=1, key="baujahr_slider")
         
         stuetz_jahre = [1930, 1958, 1968, 1977, 1983, 1994, 2001, 2008, 2015, 2026]
         if gebaeude_typ.startswith("Einfamilienhaus"):
@@ -94,10 +103,10 @@ with col_input1:
         
         heizlast_watt = wohnflaeche * spez_heizlast
         
-        # 1. Personenanzahl ÜBER den Sanierungsmaßnahmen:
-        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+        # Anzahl Personen im Haushalt über den Sanierungsmaßnahmen
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode1")
         
-        # 2. Sanierungsmaßnahmen:
+        # Sanierungsmaßnahmen
         st.markdown("---")
         st.markdown("#### Geplante Sanierungsmaßnahmen")
         sanierungs_optionen = {
@@ -113,7 +122,8 @@ with col_input1:
         gewaehlte_sanierungen = st.multiselect(
             "Wählen Sie durchgeführte oder geplante Sanierungsmaßnahmen:",
             options=list(sanierungs_optionen.keys()),
-            default=[]
+            default=[],
+            key="sanierung_multiselect"
         )
         reduktions_faktor = sum([sanierungs_optionen[m] for m in gewaehlte_sanierungen])
         reduktions_faktor = min(reduktions_faktor, 0.60)
@@ -123,8 +133,8 @@ with col_input1:
             st.info(f"💡 Reduktion durch Sanierung: **-{reduktions_faktor*100:.1f}%**")
 
     elif auswahl_modus.startswith("2."):
-        brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"])
-        verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100)
+        brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"], key="brennstoff_select")
+        verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100, key="verbrauch_input")
         if "Heizöl" in brennstoff_art:
             jaehrliche_waermearbeit = verbrauch * 10 * 0.85
         elif "Erdgas" in brennstoff_art:
@@ -132,20 +142,20 @@ with col_input1:
         else:
             jaehrliche_waermearbeit = verbrauch * 6.5 * 0.85
         heizlast_watt = (jaehrliche_waermearbeit / 2000) * 1000
-        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode2")
     else:
-        heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5)
+        heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5, key="heizlast_kw_input")
         heizlast_watt = heizlast_kw * 1000.0
-        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode3")
 
 with col_input2:
     st.markdown("### Klimadaten & Baureihe")
-    baureihe_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"])
-    t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_value=-25.0, max_value=0.0, value=-12.0, step=1.0)
-    t_grenz = st.number_input("Heizgrenztemperatur (T_grenz) [°C]", min_value=10.0, max_value=20.0, value=15.0, step=1.0)
-    systemtemperatur = st.selectbox("Systemtemperatur / Vorlauf [°C]", [35, 55])
-    ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"])
-    frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"])
+    baureihe_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"], key="baureihe_select")
+    t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_value=-25.0, max_value=0.0, value=-12.0, step=1.0, key="tnorm_input")
+    t_grenz = st.number_input("Heizgrenztemperatur (T_grenz) [°C]", min_value=10.0, max_value=20.0, value=15.0, step=1.0, key="tgrenz_input")
+    systemtemperatur = st.selectbox("Systemtemperatur / Vorlauf [°C]", [35, 55], key="systemtemp_select")
+    ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"], key="ww_bereit_select")
+    frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"], key="frischwasser_select")
 
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
 gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
@@ -249,7 +259,8 @@ if warnung_aktiv:
     
     gewaehlte_option = st.radio(
         "Welches Modell möchten Sie für die Detailansicht und das Diagramm verwenden?",
-        auswahl_optionen
+        auswahl_optionen,
+        key="modell_auswahl_radio"
     )
     
     if "Alternative" in gewaehlte_option:
@@ -345,4 +356,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App fehlerfrei aktualisiert: Personenanzahl sitzt nun korrekt über den Sanierungsmaßnahmen!")
+st.success("App reibungslos und mit stabilen Dropdown-Keys gestartet!")
