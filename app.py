@@ -377,7 +377,7 @@ st.markdown("---")
 st.subheader("4. Auswertung, Bivalenzpunkt & Komponentenauswahl")
 
 if warnung_aktiv:
-    st.warning(f"**Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im Zielbereich von **-4°C bis -9°C**. Das kleinste verfügbare Modell (**{empfohlene_wp}**) wurde als Empfehlung gewählt.")
+    st.warning(f"**Hinweis:** Keines der Modelle aus lauer Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im Zielbereich von **-4°C bis -9°C**. Das kleinste verfügbare Modell (**{empfohlene_wp}**) wurde als Empfehlung gewählt.")
     st.markdown("### Modell-Auswahl für das Angebot:")
     
     auswahl_optionen = [
@@ -484,8 +484,8 @@ elif baureihe_wahl == "AHPC":
     sockel_info = ARTIKEL_DB["Sockel_AHPC"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": sockel_info["artnr"], "Bezeichnung": sockel_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
     
-    # Regelungsset und Umschaltventil DN 25 für AHPC 27 und AHPC 412
-    if aktives_modell in ["AHPC 27", "AHPC 412"]:
+    # Regelungsset und Umschaltventil DN 25 für AHPC 27 und AHPC 412 (nur wenn KEIN Kompaktspeicher SC490 gewählt ist)
+    if aktives_modell in ["AHPC 27", "AHPC 412"] and not speicherloesung.startswith("SC490"):
         reg_info = ARTIKEL_DB["Regelungsset"]
         stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": reg_info["artnr"], "Bezeichnung": reg_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
         
@@ -612,7 +612,7 @@ def create_excel_download(df_items):
             {"Parameter": "Ermittelter Bivalenzpunkt (°C)", "Wert": round(aktiver_biv, 1)},
             {"Parameter": "Vorlauftemperatur (°C)", "Wert": systemtemperatur},
             {"Parameter": "Anzahl Personen", "Wert": personen},
-            {"Parameter": "Pumpengruppen Konfiguration", "Wert": ", ".join([f'PG {i+1}: {t}' for i, t in enumerate(pumpengruppen_liste)]) if speicherloesung == "Ein-/Zweispeicherlösung" else "N/As"}
+            {"Parameter": "Pumpengruppen Konfiguration", "Wert": ", ".join([f'PG {i+1}: {t}' for i, t in enumerate(pumpengruppen_liste)]) if speicherloesung == "Ein-/Zweispeicherlösung" else "N/A"}
         ])
         df_params.to_excel(writer, index=False, sheet_name='Auslegungsdaten')
     return output.getvalue()
@@ -626,4 +626,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App erfolgreich mit den Umschaltventilen und Regelungssets aktualisiert!")
+st.success("App aktualisiert: Regelungsset und Ventil bei AHPC 27/412 mit SC490 ausgeblendet!")
