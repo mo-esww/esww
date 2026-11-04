@@ -51,7 +51,9 @@ ARTIKEL_DB = {
     "MAG_35": {"artnr": "80631", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 35 Liter"},
     "MAG_50": {"artnr": "80641", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 50 Liter"},
     "MAG_80": {"artnr": "8065", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 80 Liter"},
-    "Anschlusskombi": {"artnr": "80481", "bezeichnung": "Gefäßanschlusskombination für MAGs bis 50L inkl. Isolierung"}
+    "Anschlusskombi": {"artnr": "80481", "bezeichnung": "Gefäßanschlusskombination für MAGs bis 50L inkl. Isolierung"},
+    "Pumpengruppe_ungemischt": {"artnr": "PG-UNG", "bezeichnung": "Pumpengruppe ungemischt"},
+    "Pumpengruppe_gemischt": {"artnr": "PG-GEM", "bezeichnung": "Pumpengruppe gemischt"}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -227,6 +229,14 @@ with col_input2:
     else:
         ww_bereitung = "nein"
         frischwasser = "nein"
+
+    st.markdown("#### Pumpengruppen-Konfiguration")
+    anzahl_pumpengruppen = st.selectbox("Anzahl der Pumpengruppen", [1, 2, 3], key="anzahl_pg_select")
+    
+    pumpengruppen_liste = []
+    for i in range(1, anzahl_pumpengruppen + 1):
+        typ = st.selectbox(f"Pumpengruppe {i}", ["gemischt", "ungemischt"], key=f"pg_typ_{i}")
+        pumpengruppen_liste.append(typ)
 
 # --- Ab hier außerhalb der Spalten (Haupt-Flow) ---
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
@@ -417,6 +427,19 @@ if mag_groesse <= 50:
     kombi_info = ARTIKEL_DB["Anschlusskombi"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": kombi_info["artnr"], "Bezeichnung": kombi_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
+# Pumpengruppen zur Stückliste hinzufügen
+for idx, pg_typ in enumerate(pumpengruppen_liste, 1):
+    pg_key = f"Pumpengruppe_{pg_typ}"
+    pg_info = ARTIKEL_DB[pg_key]
+    stueckliste.append({
+        "Pos": len(stueckliste) + 1,
+        "Kategorie": "Pumpengruppe",
+        "Artikelnummer": pg_info["artnr"],
+        "Bezeichnung": f"Pumpengruppe {idx} ({pg_typ})",
+        "Menge": 1,
+        "Einheit": "Stk"
+    })
+
 df_stueckliste = pd.DataFrame(stueckliste)
 st.dataframe(df_stueckliste, use_container_width=True, hide_index=True)
 
@@ -436,7 +459,8 @@ def create_excel_download(df_items):
             {"Parameter": "Ermittelter Bivalenzpunkt (°C)", "Wert": round(aktiver_biv, 1)},
             {"Parameter": "Vorlauftemperatur (°C)", "Wert": systemtemperatur},
             {"Parameter": "Warmwasserbereitung", "Wert": ww_bereitung},
-            {"Parameter": "Frischwassermodul", "Wert": frischwasser}
+            {"Parameter": "Frischwassermodul", "Wert": frischwasser},
+            {"Parameter": "Pumpengruppen Konfiguration", "Wert": ", ".join([f'PG {i+1}: {t}' for i, t in enumerate(pumpengruppen_liste)])}
         ])
         df_params.to_excel(writer, index=False, sheet_name='Auslegungsdaten')
     return output.getvalue()
@@ -450,4 +474,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App mit getrennten Bereichen (Klimadaten & Baureihe + Zubehör) fehlerfrei geladen!")
+st.success("App erfolgreich mit flexiblen Pumpengruppen aktualisiert!")
