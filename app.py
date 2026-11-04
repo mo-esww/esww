@@ -153,7 +153,6 @@ with col_input1:
         st.caption(f"Angesetzte spezifische Heizlast ({gebaeude_typ.split()[0]}): **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
         
         heizlast_watt = wohnflaeche * spez_heizlast
-        
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode1")
         
         st.markdown("---")
@@ -214,8 +213,14 @@ with col_input2:
 
     t_grenz = st.number_input("Heizgrenztemperatur (T_grenz) [°C]", min_value=10.0, max_value=20.0, value=15.0, step=1.0, key="tgrenz_input")
     systemtemperatur = st.selectbox("Systemtemperatur / Vorlauf [°C]", [35, 55], key="systemtemp_select")
-    ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"], key="ww_bereit_select")
-    frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"], key="frischwasser_select")
+    
+    # Bedingte Abfrage: Nur bei Zweispeicherlösung Warmwasser & Frischwasser abfragen
+    if speicherloesung == "Zweispeicherlösung":
+        ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"], key="ww_bereit_select")
+        frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"], key="frischwasser_select")
+    else:
+        ww_bereitung = "nein"
+        frischwasser = "nein"
 
 # --- Ab hier außerhalb der Spalten (Haupt-Flow) ---
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
@@ -293,7 +298,7 @@ if warnung_aktiv:
     alternativ_leistungen = alternativ_row["Leistungen"]
 
 def berechne_komponenten(modell_name):
-    if speicherloesung == "SC490-1" or speicherloesung == "SC490-2":
+    if speicherloesung.startswith("SC490"):
         puffer_gr = 0
         boiler_gr = 0
         mag_gr = 35
@@ -346,7 +351,7 @@ puffer_groesse, boiler_groesse, mag_groesse = berechne_komponenten(aktives_model
 
 res_col1, res_col2, res_col3 = st.columns(3)
 with res_col1:
-    st.metric(label="Gesamt-Heizlast (inkl. WW)", value=f"{gesamt_last_kw:.1f} kW")
+    st.metric(label="Gesamt-Heizlast", value=f"{gesamt_last_kw:.1f} kW")
     st.metric(label=f"Ausgewählte WP ({baureihe_wahl})", value=aktives_modell)
 
 with res_col2:
@@ -381,4 +386,56 @@ stueckliste.append({"Pos": 1, "Kategorie": "Wärmepumpe", "Artikelnummer": wp_in
 
 if speicherloesung.startswith("SC490"):
     sc_key = "SC490_1" if speicherloesung == "SC490-1" else "SC490_2"
-    sc_info = ARTIKEL_DB
+    sc_info = ARTIKEL_DB[sc_key]
+    stueckliste.append({"Pos": 2, "Kategorie": "Speicher", "Artikelnummer": sc_info["artnr"], "Bezeichnung": sc_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+else:
+    puffer_key = f"Puffer_{puffer_groesse}"
+    puffer_info = ARTIKEL_DB.get(puffer_key, {"artnr": f"PS-{puffer_groesse}L", "bezeichnung": f"Pufferspeicher {puffer_groesse} L"})
+    stueckliste.append({"Pos": 2, "Kategorie": "Speicher", "Artikelnummer": puffer_info["artnr"], "Bezeichnung": puffer_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+    if frischwasser == "ja":
+        friwa_info = ARTIKEL_DB["FriWa_Modul"]
+        stueckliste.append({"Pos": 3, "Kategorie": "Warmwasser", "Artikelnummer": friwa_info["artnr"], "Bezeichnung": friwa_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+    elif ww_bereitung == "ja":
+        boiler_key = f"Boiler_{boiler_groesse}"
+        boiler_info = ARTIKEL_DB.get(boiler_key, {"artnr": f"TWS-{boiler_groesse}L", "bezeichnung": f"Trinkwasserspeicher {boiler_groesse} L"})
+        stueckliste.append({"Pos": 3, "Kategorie": "Warmwasser", "Artikelnummer": boiler_info["artnr"], "Bezeichnung": boiler_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+mag_key = f"MAG_{mag_groesse}"
+mag_info = ARTIKEL_DB.get(mag_key, {"artnr": f"MAG_{mag_groesse}", "bezeichnung": f"Membran-Ausdehnungsgefäß {mag_groesse} L"})
+stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": mag_info["artnr"], "Bezeichnung": mag_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+df_stueckliste = pd.DataFrame(stueckliste)
+st.dataframe(df_stueckliste, use_container_width=True, hide_index=True)
+
+def create_excel_download(df_items):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_items.to_excel(writer, index=False, sheet_name='Artikelstueckliste_CRM')
+        df_params = pd.DataFrame([
+            {"Parameter": "Gebäudetyp", "Wert": gebaeude_typ if 'gebaeude_typ' in locals() else "N/A"},
+            {"Parameter": "Gewähltes WP-Modell", "Wert": aktives_modell},
+            {"Parameter": "Baureihe", "Wert": baureihe_wahl},
+            {"Parameter": "Speicherlösung", "Wert": speicherloesung},
+            {"Parameter": "Standort PLZ", "Wert": plz_eingabe if 'plz_eingabe' in locals() else "N/A"},
+            {"Parameter": "Norm-Außentemperatur (°C)", "Wert": t_norm},
+            {"Parameter": "Sanierungsmaßnahmen", "Wert": ", ".join(gewaehlte_sanierungen) if gewaehlte_sanierungen else "Keine"},
+            {"Parameter": "Gesamtheizlast (kW)", "Wert": round(gesamt_last_kw, 2)},
+            {"Parameter": "Ermittelter Bivalenzpunkt (°C)", "Wert": round(aktiver_biv, 1)},
+            {"Parameter": "Vorlauftemperatur (°C)", "Wert": systemtemperatur},
+            {"Parameter": "Warmwasserbereitung", "Wert": ww_bereitung},
+            {"Parameter": "Frischwassermodul", "Wert": frischwasser}
+        ])
+        df_params.to_excel(writer, index=False, sheet_name='Auslegungsdaten')
+    return output.getvalue()
+
+excel_data = create_excel_download(df_stueckliste)
+
+st.download_button(
+    label="Artikelliste als Excel für CRM herunterladen",
+    data=excel_data,
+    file_name=f"CRM_Angebotspositionen_{aktives_modell.replace(' ', '_')}.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+st.success("App fehlerfrei geladen!")
