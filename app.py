@@ -152,27 +152,4 @@ with col_input1:
         spez_heizlast = np.interp(baujahr, stuetz_jahre, stuetz_lasten)
         st.caption(f"Angesetzte spezifische Heizlast ({gebaeude_typ.split()[0]}): **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
         
-        heizlast_watt = wohnflaeche * spez_heizlast
-        
-        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode1")
-        
-        st.markdown("---")
-        st.markdown("#### Geplante Sanierungsmaßnahmen")
-        sanierungs_optionen = {
-            "Fenster erneuert (2-fach Wärmeschutzverglasung)": 0.075,
-            "Fenster erneuert (3-fach Wärmeschutzverglasung)": 0.115,
-            "Kellerdeckendämmung (Ca. 6–12 cm)": 0.055,
-            "Oberste Geschossdecke gedämmt (Ca. 14–24 cm)": 0.085,
-            "Dachdämmung (Zwischen-/Aufsparrendämmung)": 0.14,
-            "Außenwanddämmung (Ca. 12–16 cm WDVS)": 0.20,
-            "Rohrleitungen gedämmt (im unheiz. Bereich)": 0.02,
-            "Lüftungsanlage mit Wärmerückgewinnung": 0.10
-        }
-        gewaehlte_sanierungen = st.multiselect(
-            "Wählen Sie durchgeführte oder geplante Sanierungsmaßnahmen:",
-            options=list(sanierungs_optionen.keys()),
-            default=[],
-            key="sanierung_multiselect"
-        )
-        reduktions_faktor = sum([sanierungs_optionen[m] for m in gewaehlte_sanierungen])
-        reduktions_faktor = min
+        heizlast_watt = wohn
