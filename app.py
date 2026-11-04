@@ -24,7 +24,7 @@ with col_logo:
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator & Bivalenzpunkt-Rechner")
-    st.markdown("*Interaktive Auslegung, Baureihen-Wahl und Begrenzung des Bivalenzpunkts auf -4°C bis -9°C*")
+    st.markdown("*Interaktive Auslegung, Baureihe-Wahl und Begrenzung des Bivalenzpunkts auf -4°C bis -9°C*")
     st.markdown("*Ersetzt keine Heizlastberechnung nach Norm 12831*")
 
 st.markdown("---")
@@ -80,9 +80,9 @@ with col_input1:
         # Exakter Baujahr-Slider
         baujahr = st.slider("Baujahr / Dämmstandard", min_value=1930, max_value=2026, value=1980, step=1)
         
-        # Exakte Stützpunkte basierend auf der Tabelle (Mittelwerte der Spannen)
+        # Angepasste Stützpunkte (Untergrenzen der Tabellenspannen für realistischere Auslegung)
         stuetz_jahre = [1930, 1958, 1968, 1977, 1983, 1994, 2001, 2008, 2015, 2026]
-        stuetz_lasten = [170.0, 170.0, 155.0, 135.0, 105.0, 87.5, 65.0, 45.0, 35.0, 27.5]
+        stuetz_lasten = [160.0, 160.0, 140.0, 110.0,  95.0,  75.0,  60.0,  40.0,  30.0,  20.0]
         
         spez_heizlast = np.interp(baujahr, stuetz_jahre, stuetz_lasten)
         st.caption(f"📐 Angesetzte spezifische Heizlast: **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
@@ -300,4 +300,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("Konfiguration, Baureihen-Wahl und flexible Modell-Auswahl erfolgreich durchgeführt!")
+st.success("Konfiguration, Baureihen-Wahl und realistische Heizlast-Interpolation erfolgreich aktualisiert!")
