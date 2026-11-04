@@ -73,6 +73,117 @@ def ermittle_t_norm_aus_plz(plz_str):
         return -12.0
     ziffer = plz_str[:1]
     ersten_zwei = plz_str[:2]
+    
     plz_mapping_spezial = {
-        "82": -16.0, "83": -14.0, "84": -13.0, "93": -14.0, "94": -14.0,
-        "01": -14.0, "02": -14.0, "09": -14.0, "98": -14.0, "99": -
+        "82": -16.0, "83": -14.0, "84": -13.0, 
+        "93": -14.0, "94": -14.0, "98": -14.0, "99": -13.8,
+        "01": -14.0, "02": -14.0, "09": -14.0, 
+        "10": -13.3, "12": -13.3, "13": -13.3, "14": -12.7, 
+        "20": -10.5, "22": -10.5, "23": -11.0, 
+        "50": -8.7, "51": -8.7, "56": -12.0, "54": -12.0,
+        "40": -8.4, "41": -8.5, "44": -9.1, "47": -8.4, 
+        "60": -10.1, "63": -10.5, "65": -10.5, 
+        "70": -11.8, "76": -10.7, "79": -11.0
+    }
+    
+    if ersten_zwei in plz_mapping_spezial:
+        return plz_mapping_spezial[ersten_zwei]
+        
+    zonen_fallback = {
+        "0": -13.0, "1": -12.0, "2": -10.0, "3": -11.0, "4": -9.0,
+        "5": -10.0, "6": -10.5, "7": -11.0, "8": -12.0, "9": -13.0
+    }
+    return zonen_fallback.get(ziffer, -12.0)
+
+# --- Eingabebereich ---
+st.subheader("1. Gebäudedaten & Parameter")
+col_input1, col_input2 = st.columns(2)
+
+gewaehlte_sanierungen = []
+personen = 3
+
+with col_input1:
+    auswahl_modus = st.radio(
+        "Wie möchten Sie die Heizlast ermitteln?", 
+        ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"],
+        key="auswahl_modus_radio"
+    )
+    heizlast_watt = 0.0
+    
+    if auswahl_modus.startswith("1."):
+        gebaeude_typ = st.radio(
+            "Gebäudetyp", 
+            ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], 
+            horizontal=True,
+            key="gebaeude_typ_radio"
+        )
+        wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=2000, value=160, step=10, key="wohnflaeche_input")
+        baujahr = st.slider("Baujahr / Dämmstandard", min_value=1930, max_value=2026, value=1980, step=1, key="baujahr_slider")
+        
+        stuetz_jahre = [1930, 1958, 1968, 1977, 1983, 1994, 2001, 2008, 2015, 2026]
+        if gebaeude_typ.startswith("Einfamilienhaus"):
+            stuetz_lasten = [160.0, 160.0, 140.0, 110.0, 95.0, 75.0, 60.0, 40.0, 30.0, 20.0]
+        else:
+            stuetz_lasten = [120.0, 120.0, 110.0, 90.0, 75.0, 60.0, 45.0, 35.0, 25.0, 15.0]
+            
+        spez_heizlast = np.interp(baujahr, stuetz_jahre, stuetz_lasten)
+        st.caption(f"Angesetzte spezifische Heizlast ({gebaeude_typ.split()[0]}): **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
+        
+        heizlast_watt = wohnflaeche * spez_heizlast
+        
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode1")
+        
+        st.markdown("---")
+        st.markdown("#### Geplante Sanierungsmaßnahmen")
+        sanierungs_optionen = {
+            "Fenster erneuert (2-fach Wärmeschutzverglasung)": 0.075,
+            "Fenster erneuert (3-fach Wärmeschutzverglasung)": 0.115,
+            "Kellerdeckendämmung (Ca. 6–12 cm)": 0.055,
+            "Oberste Geschossdecke gedämmt (Ca. 14–24 cm)": 0.085,
+            "Dachdämmung (Zwischen-/Aufsparrendämmung)": 0.14,
+            "Außenwanddämmung (Ca. 12–16 cm WDVS)": 0.20,
+            "Rohrleitungen gedämmt (im unheiz. Bereich)": 0.02,
+            "Lüftungsanlage mit Wärmerückgewinnung": 0.10
+        }
+        gewaehlte_sanierungen = st.multiselect(
+            "Wählen Sie durchgeführte oder geplante Sanierungsmaßnahmen:",
+            options=list(sanierungs_optionen.keys()),
+            default=[],
+            key="sanierung_multiselect"
+        )
+        reduktions_faktor = sum([sanierungs_optionen[m] for m in gewaehlte_sanierungen])
+        reduktions_faktor = min(reduktions_faktor, 0.60)
+        heizlast_watt = heizlast_watt * (1.0 - reduktions_faktor)
+        
+        if gewaehlte_sanierungen:
+            st.info(f"💡 Reduktion durch Sanierung: **-{reduktions_faktor*100:.1f}%**")
+
+    elif auswahl_modus.startswith("2."):
+        brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"], key="brennstoff_select")
+        verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100, key="verbrauch_input")
+        if "Heizöl" in brennstoff_art:
+            jaehrliche_waermearbeit = verbrauch * 10 * 0.85
+        elif "Erdgas" in brennstoff_art:
+            jaehrliche_waermearbeit = verbrauch * 0.85
+        else:
+            jaehrliche_waermearbeit = verbrauch * 6.5 * 0.85
+        heizlast_watt = (jaehrliche_waermearbeit / 2000) * 1000
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode2")
+    else:
+        heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5, key="heizlast_kw_input")
+        heizlast_watt = heizlast_kw * 1000.0
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode3")
+
+with col_input2:
+    st.markdown("### Klimadaten & Baureihe")
+    baureihe_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"], key="baureihe_select")
+    
+    plz_eingabe = st.text_input("Standort Postleitzahl (PLZ)", value="56410", max_chars=5, key="plz_input")
+    t_norm_automatisch = ermittle_t_norm_aus_plz(plz_eingabe)
+    
+    manuell_ueberschreiben = st.checkbox("Norm-Außentemperatur manuell anpassen", value=False, key="manuell_chk")
+    if manuell_ueberschreiben:
+        t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_value=-25.0, max_value=0.0, value=float(t_norm_automatisch), step=1.0, key="tnorm_manuell")
+    else:
+        t_norm = t_norm_automatisch
+        st.info(f"📍 Ermittelte Norm-Außentemperatur für PLZ {plz_eingabe if plz_eingabe else '...'} : **{t_norm} °C**")
