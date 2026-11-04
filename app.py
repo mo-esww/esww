@@ -157,4 +157,261 @@ with col_input1:
         st.markdown("---")
         st.markdown("#### Geplante Sanierungsmaßnahmen")
         sanierungs_optionen = {
-            "Fenster erneuert (2-fach Wärmeschutzverglas
+            "Fenster erneuert (2-fach Wärmeschutzverglasung)": 0.075,
+            "Fenster erneuert (3-fach Wärmeschutzverglasung)": 0.115,
+            "Kellerdeckendämmung (Ca. 6–12 cm)": 0.055,
+            "Oberste Geschossdecke gedämmt (Ca. 14–24 cm)": 0.085,
+            "Dachdämmung (Zwischen-/Aufsparrendämmung)": 0.14,
+            "Außenwanddämmung (Ca. 12–16 cm WDVS)": 0.20,
+            "Rohrleitungen gedämmt (im unheiz. Bereich)": 0.02,
+            "Lüftungsanlage mit Wärmerückgewinnung": 0.10
+        }
+        gewaehlte_sanierungen = st.multiselect(
+            "Wählen Sie durchgeführte oder geplante Sanierungsmaßnahmen:",
+            options=list(sanierungs_optionen.keys()),
+            default=[],
+            key="sanierung_multiselect"
+        )
+        reduktions_faktor = sum([sanierungs_optionen[m] for m in gewaehlte_sanierungen])
+        reduktions_faktor = min(reduktions_faktor, 0.60)
+        heizlast_watt = heizlast_watt * (1.0 - reduktions_faktor)
+        
+        if gewaehlte_sanierungen:
+            st.info(f"💡 Reduktion durch Sanierung: **-{reduktions_faktor*100:.1f}%**")
+
+    elif auswahl_modus.startswith("2."):
+        brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"], key="brennstoff_select")
+        verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100, key="verbrauch_input")
+        if "Heizöl" in brennstoff_art:
+            jaehrliche_waermearbeit = verbrauch * 10 * 0.85
+        elif "Erdgas" in brennstoff_art:
+            jaehrliche_waermearbeit = verbrauch * 0.85
+        else:
+            jaehrliche_waermearbeit = verbrauch * 6.5 * 0.85
+        heizlast_watt = (jaehrliche_waermearbeit / 2000) * 1000
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode2")
+    else:
+        heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5, key="heizlast_kw_input")
+        heizlast_watt = heizlast_kw * 1000.0
+        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode3")
+
+with col_input2:
+    st.markdown("### Klimadaten & Baureihe")
+    baureihe_wahl = st.selectbox("Wärmepumpen-Baureihe", ["AHPA", "AHPC"], key="baureihe_select")
+    
+    plz_eingabe = st.text_input("Standort Postleitzahl (PLZ)", value="56410", max_chars=5, key="plz_input")
+    t_norm_automatisch = ermittle_t_norm_aus_plz(plz_eingabe)
+    
+    manuell_ueberschreiben = st.checkbox("Norm-Außentemperatur manuell anpassen", value=False, key="manuell_chk")
+    if manuell_ueberschreiben:
+        t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_value=-25.0, max_value=0.0, value=float(t_norm_automatisch), step=1.0, key="tnorm_manuell")
+    else:
+        t_norm = t_norm_automatisch
+        st.info(f"📍 Ermittelte Norm-Außentemperatur für PLZ {plz_eingabe if plz_eingabe else '...'} : **{t_norm} °C**")
+
+    t_grenz = st.number_input("Heizgrenztemperatur (T_grenz) [°C]", min_value=10.0, max_value=20.0, value=15.0, step=1.0, key="tgrenz_input")
+    systemtemperatur = st.selectbox("Systemtemperatur / Vorlauf [°C]", [35, 55], key="systemtemp_select")
+    ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"], key="ww_bereit_select")
+    frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"], key="frischwasser_select")
+
+ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
+gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
+
+aktive_db = kennlinien_db_ahpa if baureihe_wahl == "AHPA" else kennlinien_db_ahpc
+ergebnisse_liste = []
+
+for wp_name, daten in aktive_db.items():
+    wp_leistungen = daten[systemtemperatur]
+    biv_punkt = 99.0
+    leistung_biv = 0.0
+    last_werte = [gesamt_last_kw * (t_grenz - x) / (t_grenz - t_norm) for x in x_vals]
+    differenzen = [wp_l - l_w for wp_l, l_w in zip(wp_leistungen, last_werte)]
+    
+    for i in range(len(x_vals) - 1):
+        if differenzen[i] * differenzen[i+1] <= 0:
+            x1, x2 = x_vals[i], x_vals[i+1]
+            d1, d2 = differenzen[i], differenzen[i+1]
+            if d1 != d2:
+                biv_punkt = x1 - d1 * (x2 - x1) / (d2 - d1)
+                leistung_biv = wp_leistungen[i] + (biv_punkt - x1) / (x2 - x1) * (wp_leistungen[i+1] - wp_leistungen[i])
+            else:
+                biv_punkt = x1
+                leistung_biv = wp_leistungen[i]
+            break
+            
+    if biv_punkt == 99.0 and differenzen[0] >= 0:
+        biv_punkt = -18.0
+        leistung_biv = wp_leistungen[0]
+    elif biv_punkt == 99.0:
+        biv_punkt = 22.0
+        leistung_biv = wp_leistungen[-1]
+
+    wp_power_tnorm = np.interp(t_norm, x_vals, wp_leistungen)
+    deckungsgrad_norm = (wp_power_tnorm / gesamt_last_kw) * 100
+    
+    ergebnisse_liste.append({
+        "Modell": wp_name,
+        "Bivalenzpunkt [°C]": round(biv_punkt, 1),
+        "Leistung bei Biv. [kW]": round(leistung_biv, 2),
+        "Deckung bei T_norm [%]": round(deckungsgrad_norm, 1),
+        "Leistungen": wp_leistungen,
+        "MaxLeistungBei22C": wp_leistungen[-1]
+    })
+
+df_ergebnisse = pd.DataFrame(ergebnisse_liste)
+df_geprueft = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=True)
+passende_wps = df_geprueft[(df_geprueft["Bivalenzpunkt [°C]"] >= -9.0) & (df_geprueft["Bivalenzpunkt [°C]"] <= -4.0)]
+
+warnung_aktiv = False
+if not passende_wps.empty:
+    empfohlene_wp = passende_wps.iloc[0]["Modell"]
+else:
+    empfohlene_wp = df_geprueft.iloc[0]["Modell"]
+    warnung_aktiv = True
+
+row_empf = df_ergebnisse[df_ergebnisse["Modell"] == empfohlene_wp].iloc[0]
+biv_empfehlung = row_empf["Bivalenzpunkt [°C]"]
+aktive_leistungen = row_empf["Leistungen"]
+
+alternativ_wp = ""
+alternativ_biv = 0.0
+alternativ_leistungen = []
+
+if warnung_aktiv:
+    staerkere_modelle = df_geprueft[df_geprueft["MaxLeistungBei22C"] >= row_empf["MaxLeistungBei22C"]]
+    if len(staerkere_modelle) > 1:
+        alternativ_row = staerkere_modelle.iloc[1]
+    else:
+        alternativ_row = df_geprueft.iloc[-1]
+    
+    alternativ_wp = alternativ_row["Modell"]
+    alternativ_biv = alternativ_row["Bivalenzpunkt [°C]"]
+    alternativ_leistungen = alternativ_row["Leistungen"]
+
+def berechne_komponenten(modell_name):
+    puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300}
+    puffer_gr = puffer_tabelle.get(modell_name, 300)
+
+    if frischwasser == "ja":
+        boiler_gr = 500
+    else:
+        boiler_tabelle = {1: 300, 2: 300, 3: 300, 4: 400, 5: 400, 6: 500, 7: 500}
+        boiler_gr = boiler_tabelle.get(personen, 400)
+
+    mag_tabelle = {300: 35, 500: 50, 800: 80, 1000: 80}
+    mag_gr = mag_tabelle.get(puffer_gr, 35)
+    return puffer_gr, boiler_gr, mag_gr
+
+st.markdown("---")
+st.subheader("2. Auswertung, Bivalenzpunkt & Komponentenauswahl")
+
+if warnung_aktiv:
+    st.warning(f"**Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im Zielbereich von **-4°C bis -9°C**. Das kleinste verfügbare Modell (**{empfohlene_wp}**) wurde als Empfehlung gewählt.")
+    st.markdown("### Modell-Auswahl für das Angebot:")
+    
+    auswahl_optionen = [
+        f"Empfohlenes Klein-Modell: {empfohlene_wp} (Biv.: {biv_empfehlung} °C)",
+        f"Nächstgrößere Alternative: {alternativ_wp} (Biv.: {alternativ_biv} °C)"
+    ]
+    
+    gewaehlte_option = st.radio(
+        "Welches Modell möchten Sie für die Detailansicht und das Diagramm verwenden?",
+        auswahl_optionen,
+        key="modell_auswahl_radio"
+    )
+    
+    if "Alternative" in gewaehlte_option:
+        aktives_modell = alternativ_wp
+        aktiver_biv = alternativ_biv
+        aktive_leistungen = alternativ_leistungen
+    else:
+        aktives_modell = empfohlene_wp
+        aktiver_biv = biv_empfehlung
+        aktive_leistungen = row_empf["Leistungen"]
+else:
+    aktives_modell = empfohlene_wp
+    aktiver_biv = biv_empfehlung
+    aktive_leistungen = row_empf["Leistungen"]
+
+puffer_groesse, boiler_groesse, mag_groesse = berechne_komponenten(aktives_modell)
+
+res_col1, res_col2, res_col3 = st.columns(3)
+with res_col1:
+    st.metric(label="Gesamt-Heizlast (inkl. WW)", value=f"{gesamt_last_kw:.1f} kW")
+    st.metric(label=f"Ausgewählte WP ({baureihe_wahl})", value=aktives_modell)
+
+with res_col2:
+    st.metric(label="Ermittelter Bivalenzpunkt", value=f"{aktiver_biv} °C")
+    st.metric(label="Ausdehnungsgefäß (MAG)", value=f"{mag_groesse} Liter")
+
+with res_col3:
+    st.metric(label="Pufferspeicher", value=f"{puffer_groesse} Liter")
+    st.metric(label="Trinkwasser-Boiler / FriWa", value=f"{boiler_groesse} Liter")
+
+st.markdown("---")
+st.subheader(f"Kennlinien-Vergleich für {aktives_modell}")
+
+chart_data = pd.DataFrame({
+    "Quellentemperatur (°C)": x_vals,
+    "Gebäude-Heizlast (kW)": [gesamt_last_kw * (t_grenz - x) / (t_grenz - t_norm) for x in x_vals],
+    f"WP Maximalleistung {aktives_modell} ({systemtemperatur}°C)": aktive_leistungen
+}).set_index("Quellentemperatur (°C)")
+
+st.line_chart(chart_data)
+
+st.markdown("---")
+st.subheader("Artikel-Stückliste für CRM-Export")
+
+stueckliste = []
+wp_info = ARTIKEL_DB.get(aktives_modell, {"artnr": "UNKNOWN", "bezeichnung": aktives_modell})
+stueckliste.append({"Pos": 1, "Kategorie": "Wärmepumpe", "Artikelnummer": wp_info["artnr"], "Bezeichnung": wp_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+puffer_key = f"Puffer_{puffer_groesse}"
+puffer_info = ARTIKEL_DB.get(puffer_key, {"artnr": f"PS-{puffer_groesse}L", "bezeichnung": f"Pufferspeicher {puffer_groesse} L"})
+stueckliste.append({"Pos": 2, "Kategorie": "Speicher", "Artikelnummer": puffer_info["artnr"], "Bezeichnung": puffer_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+if frischwasser == "ja":
+    friwa_info = ARTIKEL_DB["FriWa_Modul"]
+    stueckliste.append({"Pos": 3, "Kategorie": "Warmwasser", "Artikelnummer": friwa_info["artnr"], "Bezeichnung": friwa_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+elif ww_bereitung == "ja":
+    boiler_key = f"Boiler_{boiler_groesse}"
+    boiler_info = ARTIKEL_DB.get(boiler_key, {"artnr": f"TWS-{boiler_groesse}L", "bezeichnung": f"Trinkwasserspeicher {boiler_groesse} L"})
+    stueckliste.append({"Pos": 3, "Kategorie": "Warmwasser", "Artikelnummer": boiler_info["artnr"], "Bezeichnung": boiler_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+mag_key = f"MAG_{mag_groesse}"
+mag_info = ARTIKEL_DB.get(mag_key, {"artnr": f"MAG_{mag_groesse}", "bezeichnung": f"Membran-Ausdehnungsgefäß {mag_groesse} L"})
+stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": mag_info["artnr"], "Bezeichnung": mag_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+df_stueckliste = pd.DataFrame(stueckliste)
+st.dataframe(df_stueckliste, use_container_width=True, hide_index=True)
+
+def create_excel_download(df_items):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_items.to_excel(writer, index=False, sheet_name='Artikelstueckliste_CRM')
+        df_params = pd.DataFrame([
+            {"Parameter": "Gebäudetyp", "Wert": gebaeude_typ if 'gebaeude_typ' in locals() else "N/A"},
+            {"Parameter": "Gewähltes WP-Modell", "Wert": aktives_modell},
+            {"Parameter": "Baureihe", "Wert": baureihe_wahl},
+            {"Parameter": "Standort PLZ", "Wert": plz_eingabe if 'plz_eingabe' in locals() else "N/A"},
+            {"Parameter": "Norm-Außentemperatur (°C)", "Wert": t_norm},
+            {"Parameter": "Sanierungsmaßnahmen", "Wert": ", ".join(gewaehlte_sanierungen) if gewaehlte_sanierungen else "Keine"},
+            {"Parameter": "Gesamtheizlast (kW)", "Wert": round(gesamt_last_kw, 2)},
+            {"Parameter": "Ermittelter Bivalenzpunkt (°C)", "Wert": round(aktiver_biv, 1)},
+            {"Parameter": "Vorlauftemperatur (°C)", "Wert": systemtemperatur},
+            {"Parameter": "Warmwasserbereitung", "Wert": ww_bereitung},
+            {"Parameter": "Frischwassermodul", "Wert": frischwasser}
+        ])
+        df_params.to_excel(writer, index=False, sheet_name='Auslegungsdaten')
+    return output.getvalue()
+
+excel_data = create_excel_download(df_stueckliste)
+
+st.download_button(
+    label="Artikelliste als Excel für CRM herunterladen",
+    data=excel_data,
+    file_name=f"CRM_Angebotspositionen_{aktives_modell.replace(' ', '_')}.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+st.success("App fehlerfrei und stabil geladen!")
