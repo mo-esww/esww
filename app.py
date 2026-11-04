@@ -67,7 +67,11 @@ ARTIKEL_DB = {
     # Wärmepumpensockel (AHPC)
     "Sockel_AHPC": {"artnr": "674080", "bezeichnung": "Wärmepumpensockel AHPC 27 / 412"},
     # Geräuschentkoppler (für jede WP)
-    "Geraeuschentkoppler": {"artnr": "644241", "bezeichnung": "Geräuschentkoppler"}
+    "Geraeuschentkoppler": {"artnr": "644241", "bezeichnung": "Geräuschentkoppler"},
+    # Neue Artikel: Magnetitabscheider, Tauchhülse, Frostschutzventil
+    "Magnetitabscheider": {"artnr": "804525", "bezeichnung": "Filter und Magnetitabscheider DN 25 inkl. Isolierung"},
+    "Tauchhuelse": {"artnr": "8047", "bezeichnung": "Tauchhülse DN 15 x 200 mm"},
+    "Frostschutzventil": {"artnr": "8038", "bezeichnung": "Frostschutzventil DN 32"}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -435,6 +439,10 @@ stueckliste.append({"Pos": 1, "Kategorie": "Wärmepumpe", "Artikelnummer": wp_in
 entkoppler_info = ARTIKEL_DB["Geraeuschentkoppler"]
 stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": entkoppler_info["artnr"], "Bezeichnung": entkoppler_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
+# Frostschutzventil DN 32 (immer bei jeder WP unabhängig von Speicherauswahl)
+frost_info = ARTIKEL_DB["Frostschutzventil"]
+stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": frost_info["artnr"], "Bezeichnung": frost_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
 # Baureihen-spezifisches Zubehör hinzufügen
 if baureihe_wahl == "AHPA":
     if aktives_modell == "AHPA 412":
@@ -464,6 +472,13 @@ if speicherloesung.startswith("SC490"):
     sc_info = ARTIKEL_DB[sc_key]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Speicher", "Artikelnummer": sc_info["artnr"], "Bezeichnung": sc_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 else:
+    # Wenn kein SC490 ausgewählt ist: Magnetitabscheider und 2x Tauchhülse hinzufügen
+    mag_abs_info = ARTIKEL_DB["Magnetitabscheider"]
+    stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": mag_abs_info["artnr"], "Bezeichnung": mag_abs_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+    
+    tauch_info = ARTIKEL_DB["Tauchhuelse"]
+    stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": tauch_info["artnr"], "Bezeichnung": tauch_info["bezeichnung"], "Menge": 2, "Einheit": "Stk"})
+
     puffer_key = f"Puffer_{puffer_groesse}"
     puffer_info = ARTIKEL_DB.get(puffer_key, {"artnr": f"PS-{puffer_groesse}L", "bezeichnung": f"Pufferspeicher {puffer_groesse} L"})
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Speicher", "Artikelnummer": puffer_info["artnr"], "Bezeichnung": puffer_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
@@ -514,7 +529,7 @@ if speicherloesung == "Ein-/Zweispeicherlösung":
                 "Pos": len(stueckliste) + 1,
                 "Kategorie": "Pumpengruppe",
                 "Artikelnummer": stell_info["artnr"],
-                "Bezeichnung": f"Stellmotor für Mischventile (for PG {idx})",
+                "Bezeichnung": f"Stellmotor für Mischventile (für PG {idx})",
                 "Menge": 1,
                 "Einheit": "Stk"
             })
@@ -582,4 +597,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App mit Geräuschentkoppler erfolgreich aktualisiert!")
+st.success("App mit Magnetitabscheider, Tauchhülsen und Frostschutzventil aktualisiert!")
