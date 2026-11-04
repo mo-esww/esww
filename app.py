@@ -73,9 +73,11 @@ ARTIKEL_DB = {
     "Magnetitabscheider_DN32": {"artnr": "804532", "bezeichnung": "Filter und Magnetitabscheider DN 32 inkl. Isolierung"},
     "Tauchhuelse": {"artnr": "8047", "bezeichnung": "Tauchhülse DN 15 x 200 mm"},
     "Frostschutzventil": {"artnr": "8038", "bezeichnung": "Frostschutzventil DN 32"},
-    # Spezifische Artikel für AHPA 722 / 1030
+    # Spezifische Artikel
     "Regelungsset": {"artnr": "738180", "bezeichnung": "Regelungsset AP 440 + IM 110"},
-    "Zusatzheizung": {"artnr": "738154", "bezeichnung": "Zusatzheizung 3 - 9 KW 1 1/4\""}
+    "Zusatzheizung": {"artnr": "738154", "bezeichnung": "Zusatzheizung 3 - 9 KW 1 1/4\""},
+    "Umschaltventil_DN25": {"artnr": "8002", "bezeichnung": "3 -Wege Zonen- u. Umschaltventil DN 25 mit ARP Antrieb"},
+    "Umschaltventil_DN32": {"artnr": "8002", "bezeichnung": "3 -Wege Zonen- u. Umschaltventil DN 32 mit ARP Antrieb"}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -473,10 +475,22 @@ if baureihe_wahl == "AHPA":
         
         zus_info = ARTIKEL_DB["Zusatzheizung"]
         stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": zus_info["artnr"], "Bezeichnung": zus_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        
+        # 3-Wege Umschaltventil DN 32 für AHPA 722 / 1030
+        vent_info = ARTIKEL_DB["Umschaltventil_DN32"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": vent_info["artnr"], "Bezeichnung": vent_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
 elif baureihe_wahl == "AHPC":
     sockel_info = ARTIKEL_DB["Sockel_AHPC"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": sockel_info["artnr"], "Bezeichnung": sockel_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+    
+    # Regelungsset und Umschaltventil DN 25 für AHPC 27 und AHPC 412
+    if aktives_modell in ["AHPC 27", "AHPC 412"]:
+        reg_info = ARTIKEL_DB["Regelungsset"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": reg_info["artnr"], "Bezeichnung": reg_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        
+        vent_info = ARTIKEL_DB["Umschaltventil_DN25"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": vent_info["artnr"], "Bezeichnung": vent_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
 if speicherloesung.startswith("SC490"):
     sc_key = "SC490_1" if speicherloesung == "SC490-1" else "SC490_2"
@@ -598,7 +612,7 @@ def create_excel_download(df_items):
             {"Parameter": "Ermittelter Bivalenzpunkt (°C)", "Wert": round(aktiver_biv, 1)},
             {"Parameter": "Vorlauftemperatur (°C)", "Wert": systemtemperatur},
             {"Parameter": "Anzahl Personen", "Wert": personen},
-            {"Parameter": "Pumpengruppen Konfiguration", "Wert": ", ".join([f'PG {i+1}: {t}' for i, t in enumerate(pumpengruppen_liste)]) if speicherloesung == "Ein-/Zweispeicherlösung" else "N/A"}
+            {"Parameter": "Pumpengruppen Konfiguration", "Wert": ", ".join([f'PG {i+1}: {t}' for i, t in enumerate(pumpengruppen_liste)]) if speicherloesung == "Ein-/Zweispeicherlösung" else "N/As"}
         ])
         df_params.to_excel(writer, index=False, sheet_name='Auslegungsdaten')
     return output.getvalue()
@@ -612,4 +626,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App erfolgreich aktualisiert: Magnetitabscheider DN 32 bei AHPA 722/1030 aktiv!")
+st.success("App erfolgreich mit den Umschaltventilen und Regelungssets aktualisiert!")
