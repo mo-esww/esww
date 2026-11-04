@@ -135,13 +135,10 @@ gewaehlte_sanierungen = st.multiselect(
     default=[]
 )
 
-# Berechnung des Sanierungs-Abzugs (multiplikativ oder additiv, hier kombiniert als prozentuale Reduktion)
 reduktions_faktor = sum([sanierungs_optionen[m] for m in gewaehlte_sanierungen])
-# Begrenzung der maximalen Reduktion auf z.B. 60% um realistisch zu bleiben
 reduktions_faktor = min(reduktions_faktor, 0.60)
 
 heizlast_nach_sanierung = heizlast_watt * (1.0 - reduktions_faktor)
-
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
 gesamt_last_kw = (heizlast_nach_sanierung + ww_aufschlag) / 1000.0
 
@@ -197,7 +194,8 @@ warnung_aktiv = False
 if not passende_wps.empty:
     empfohlene_wp = passende_wps.iloc[0]["Modell"]
 else:
-    empfohlene_wp = df_ergebnisse.sort_values(by="MaxLeistungBei22C", ascending=False).iloc[0]["Modell"]
+    # Korrektur: Bei geringer Last das KLEINSTE verfügbare Modell statt des größten wählen
+    empfohlene_wp = df_geprueft.iloc[0]["Modell"]
     warnung_aktiv = True
 
 row_empf = df_ergebnisse[df_ergebnisse["Modell"] == empfohlene_wp].iloc[0]
@@ -209,11 +207,11 @@ alternativ_biv = 0.0
 alternativ_leistungen = []
 
 if warnung_aktiv:
-    staerkere_modelle = df_geprueft[df_geprueft["MaxLeistungBei22C"] <= row_empf["MaxLeistungBei22C"]]
+    staerkere_modelle = df_geprueft[df_geprueft["MaxLeistungBei22C"] >= row_empf["MaxLeistungBei22C"]]
     if len(staerkere_modelle) > 1:
-        alternativ_row = staerkere_modelle.iloc[-2]
+        alternativ_row = staerkere_modelle.iloc[1]
     else:
-        alternativ_row = df_geprueft.iloc[0]
+        alternativ_row = df_geprueft.iloc[-1]
     
     alternativ_wp = alternativ_row["Modell"]
     alternativ_biv = alternativ_row["Bivalenzpunkt [°C]"]
@@ -237,12 +235,12 @@ st.markdown("---")
 st.subheader("3. Auswertung, Bivalenzpunkt & Komponentenauswahl")
 
 if warnung_aktiv:
-    st.warning(f"**Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im exakten Zielbereich von **-4°C bis -9°C**. Das größte verfügbare Modell (**{empfohlene_wp}**) ergibt einen Bivalenzpunkt von **{biv_empfehlung} °C**.")
+    st.warning(f"**Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser geringen Heizlast einen Bivalenzpunkt im Zielbereich von **-4°C bis -9°C** (alle Modelle sind größer als die Gebäudeheizlast). Das kleinste verfügbare Modell (**{empfohlene_wp}**) wurde als Empfehlung gewählt.")
     st.markdown("### Modell-Auswahl für das Angebot:")
     
     auswahl_optionen = [
-        f"Empfohlenes Max-Modell: {empfohlene_wp} (Biv.: {biv_empfehlung} °C)",
-        f"Nächstkleinere Alternative: {alternativ_wp} (Biv.: {alternativ_biv} °C)"
+        f"Empfohlenes Klein-Modell: {empfohlene_wp} (Biv.: {biv_empfehlung} °C)",
+        f"Nächstgrößere Alternative: {alternativ_wp} (Biv.: {alternativ_biv} °C)"
     ]
     
     gewaehlte_option = st.radio(
@@ -343,4 +341,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("Sanierungsmaßnahmen und Berechnungen erfolgreich integriert!")
+st.success("Wärmepumpen-Auswahl erfolgreich korrigiert (kleinstes Modell bei geringer Last)!")
