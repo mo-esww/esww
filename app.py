@@ -70,91 +70,9 @@ kennlinien_db_ahpc = {
 # --- Hilfsfunktion zur PLZ-Ermittlung der Norm-Außentemperatur ---
 def ermittle_t_norm_aus_plz(plz_str):
     if not plz_str or len(plz_str) < 2:
-        return -12.0  # Standard-Fallback
-    
-    # Erste Ziffer / Regionen-Zuordnung nach DIN-Klimazonen in Deutschland
+        return -12.0
     ziffer = plz_str[:1]
     ersten_zwei = plz_str[:2]
-    
-    # Spezifische Großstädte / Regionen vorab prüfen
     plz_mapping_spezial = {
-        "82": -16.0, "83": -14.0, "84": -13.0, "93": -14.0, "94": -14.0, # Alpenvorland / Bayern Ost
-        "01": -14.0, "02": -14.0, "09": -14.0, # Sachsen / Erzgebirge
-        "98": -14.0, "99": -13.8, # Thüringen
-        "10": -13.3, "12": -13.3, "13": -13.3, "14": -12.7, # Berlin / Potsdam
-        "20": -10.5, "22": -10.5, "23": -11.0, # Hamburg / Ostsee
-        "50": -8.7, "51": -8.7, "40": -8.4, "41": -8.5, "44": -9.1, "47": -8.4, # Rheinland / Ruhrgebiet (mild)
-        "60": -10.1, "63": -10.5, "65": -10.5, # Rhein-Main
-        "70": -11.8, "76": -10.7, "79": -11.0, # Baden-Württemberg
-        "56": -12.0, "54": -12.0 # Region Koblenz / Eifel / Westerwald
-    }
-    
-    if ersten_zwei in plz_mapping_spezial:
-        return plz_mapping_spezial[ersten_zwei]
-        
-    # Allgemeine Zonen-Zuordnung nach erster Ziffer (PLZ-Bereiche 0 bis 9)
-    zonen_fallback = {
-        "0": -13.0, # Ostdeutschland / Mittelgebirge
-        "1": -12.0, # Berlin / Brandenburg / Mecklenburg-Vorpommern
-        "2": -10.0, # Norddeutschland / Küste (mild)
-        "3": -11.0, # Niedersachsen / Hessen / Sachsen-Anhalt
-        "4": -9.0,  # Nordrhein-Westfalen (sehr mild)
-        "5": -10.0, # Rheinland-Pfalz / NRW Süd / Hessen
-        "6": -10.5, # Hessen / Rheinland-Pfalz / Saarland
-        "7": -11.0, # Baden-Württemberg
-        "8": -12.0, # Bayern Süd / München
-        "9": -13.0  # Bayern Nord / Thüringen
-    }
-    
-    return zonen_fallback.get(ziffer, -12.0)
-
-# --- Eingabebereich ---
-st.subheader("1. Gebäudedaten & Parameter")
-col_input1, col_input2 = st.columns(2)
-
-gewaehlte_sanierungen = []
-personen = 3  # Standard-Fallback
-
-with col_input1:
-    auswahl_modus = st.radio(
-        "Wie möchten Sie die Heizlast ermitteln?", 
-        ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"],
-        key="auswahl_modus_radio"
-    )
-    heizlast_watt = 0.0
-    
-    if auswahl_modus.startswith("1."):
-        gebaeude_typ = st.radio(
-            "Gebäudetyp", 
-            ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], 
-            horizontal=True,
-            key="gebaeude_typ_radio"
-        )
-        wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=2000, value=160, step=10, key="wohnflaeche_input")
-        baujahr = st.slider("Baujahr / Dämmstandard", min_value=1930, max_value=2026, value=1980, step=1, key="baujahr_slider")
-        
-        stuetz_jahre = [1930, 1958, 1968, 1977, 1983, 1994, 2001, 2008, 2015, 2026]
-        if gebaeude_typ.startswith("Einfamilienhaus"):
-            stuetz_lasten = [160.0, 160.0, 140.0, 110.0, 95.0, 75.0, 60.0, 40.0, 30.0, 20.0]
-        else:
-            stuetz_lasten = [120.0, 120.0, 110.0, 90.0, 75.0, 60.0, 45.0, 35.0, 25.0, 15.0]
-            
-        spez_heizlast = np.interp(baujahr, stuetz_jahre, stuetz_lasten)
-        st.caption(f"Angesetzte spezifische Heizlast ({gebaeude_typ.split()[0]}): **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
-        
-        heizlast_watt = wohnflaeche * spez_heizlast
-        
-        # Anzahl Personen im Haushalt über den Sanierungsmaßnahmen
-        personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode1")
-        
-        # Sanierungsmaßnahmen
-        st.markdown("---")
-        st.markdown("#### Geplante Sanierungsmaßnahmen")
-        sanierungs_optionen = {
-            "Fenster erneuert (2-fach Wärmeschutzverglasung)": 0.075,
-            "Fenster erneuert (3-fach Wärmeschutzverglasung)": 0.115,
-            "Kellerdeckendämmung (Ca. 6–12 cm)": 0.055,
-            "Oberste Geschossdecke gedämmt (Ca. 14–24 cm)": 0.085,
-            "Dachdämmung (Zwischen-/Aufsparrendämmung)": 0.14,
-            "Außenwanddämmung (Ca. 12–16 cm WDVS)": 0.20,
-            "Rohrleitungen gedämmt (im unheiz. Bereich)": 0
+        "82": -16.0, "83": -14.0, "84": -13.0, "93": -14.0, "94": -14.0,
+        "01": -14.0, "02": -14.0, "09": -14.0, "98": -14.0, "99": -
