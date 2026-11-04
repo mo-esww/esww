@@ -58,12 +58,14 @@ ARTIKEL_DB = {
     "Wandhalterung": {"artnr": "8015", "bezeichnung": "Wandhalterung für Pumpengruppe"},
     "Zirkulationspumpe": {"artnr": "8012", "bezeichnung": "Zirkulationspumpe"},
     "Zirkulations_Verschraubung": {"artnr": "80121", "bezeichnung": "Verschraubungssatz für Zirkulationspumpe"},
-    # Neue Anschlusssets & Verdampferabdeckungen
+    # Anschlusssets & Verdampferabdeckungen (AHPA)
     "Anschluss_673516": {"artnr": "673516", "bezeichnung": "Anschlussset für Wärmepumpe AHPA 412"},
     "Anschluss_738171": {"artnr": "738171", "bezeichnung": "Anschlussset für Wärmepumpe AHPA 413 & 618"},
     "Verdampfer_670382": {"artnr": "670382", "bezeichnung": "Verdampferabdeckung für AHPA 412"},
     "Verdampfer_670414": {"artnr": "670414", "bezeichnung": "Verdampferabdeckung für AHPA 413 & 618"},
-    "Verdampfer_673140": {"artnr": "673140", "bezeichnung": "Verdampferabdeckung für AHPA 722 & 1030"}
+    "Verdampfer_673140": {"artnr": "673140", "bezeichnung": "Verdampferabdeckung für AHPA 722 & 1030"},
+    # Wärmepumpensockel (AHPC)
+    "Sockel_AHPC": {"artnr": "674080", "bezeichnung": "Wärmepumpensockel AHPC 27 / 412"}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -427,11 +429,11 @@ stueckliste = []
 wp_info = ARTIKEL_DB.get(aktives_modell, {"artnr": "UNKNOWN", "bezeichnung": aktives_modell})
 stueckliste.append({"Pos": 1, "Kategorie": "Wärmepumpe", "Artikelnummer": wp_info["artnr"], "Bezeichnung": wp_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
-# Anschlussset und Verdampferabdeckung basierend auf WP-Modell hinzufügen (gilt für AHPA)
+# Baureihen-spezifisches Zubehör hinzufügen
 if baureihe_wahl == "AHPA":
     if aktives_modell == "AHPA 412":
         anschluss_info = ARTIKEL_DB["Anschluss_673516"]
-        st.append_item = stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": anschluss_info["artnr"], "Bezeichnung": anschluss_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": anschluss_info["artnr"], "Bezeichnung": anschluss_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
         
         verd_info = ARTIKEL_DB["Verdampfer_670382"]
         stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": verd_info["artnr"], "Bezeichnung": verd_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
@@ -446,6 +448,10 @@ if baureihe_wahl == "AHPA":
     elif aktives_modell in ["AHPA 722", "AHPA 1030"]:
         verd_info = ARTIKEL_DB["Verdampfer_673140"]
         stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": verd_info["artnr"], "Bezeichnung": verd_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
+elif baureihe_wahl == "AHPC":
+    sockel_info = ARTIKEL_DB["Sockel_AHPC"]
+    stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": sockel_info["artnr"], "Bezeichnung": sockel_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
 if speicherloesung.startswith("SC490"):
     sc_key = "SC490_1" if speicherloesung == "SC490-1" else "SC490_2"
@@ -570,4 +576,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App mit Anschlusssets und Verdampferabdeckungen erfolgreich aktualisiert!")
+st.success("App mit AHPC-Wärmepumpensockel erfolgreich aktualisiert!")
