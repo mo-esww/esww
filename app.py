@@ -121,124 +121,142 @@ def ermittle_t_norm_aus_plz(plz_str):
     }
     return zonen_fallback.get(ziffer, -12.0)
 
-# --- Eingabebereich ---
+# --- Eingabebereich (Übersichtlich untereinander / geordnet) ---
 st.subheader("1. Gebäudedaten & Parameter")
-col_input1, col_input2 = st.columns(2)
 
+auswahl_modus = st.radio(
+    "Wie möchten Sie die Heizlast ermitteln?", 
+    ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"],
+    key="auswahl_modus_radio"
+)
+heizlast_watt = 0.0
 gewaehlte_sanierungen = []
 personen = 3
 
-with col_input1:
-    auswahl_modus = st.radio(
-        "Wie möchten Sie die Heizlast ermitteln?", 
-        ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"],
-        key="auswahl_modus_radio"
+if auswahl_modus.startswith("1."):
+    gebaeude_typ = st.radio(
+        "Gebäudetyp", 
+        ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], 
+        horizontal=True,
+        key="gebaeude_typ_radio"
     )
-    heizlast_watt = 0.0
-    
-    if auswahl_modus.startswith("1."):
-        gebaeude_typ = st.radio(
-            "Gebäudetyp", 
-            ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], 
-            horizontal=True,
-            key="gebaeude_typ_radio"
-        )
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
         wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=2000, value=160, step=10, key="wohnflaeche_input")
         baujahr = st.slider("Baujahr / Dämmstandard", min_value=1930, max_value=2026, value=1980, step=1, key="baujahr_slider")
-        
-        stuetz_jahre = [1930, 1958, 1968, 1977, 1983, 1994, 2001, 2008, 2015, 2026]
-        if gebaeude_typ.startswith("Einfamilienhaus"):
-            stuetz_lasten = [160.0, 160.0, 140.0, 110.0, 95.0, 75.0, 60.0, 40.0, 30.0, 20.0]
-        else:
-            stuetz_lasten = [120.0, 120.0, 110.0, 90.0, 75.0, 60.0, 45.0, 35.0, 25.0, 15.0]
-            
-        spez_heizlast = np.interp(baujahr, stuetz_jahre, stuetz_lasten)
-        st.caption(f"Angesetzte spezifische Heizlast ({gebaeude_typ.split()[0]}): **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
-        
-        heizlast_watt = wohnflaeche * spez_heizlast
+    with col_g2:
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode1")
+    
+    stuetz_jahre = [1930, 1958, 1968, 1977, 1983, 1994, 2001, 2008, 2015, 2026]
+    if gebaeude_typ.startswith("Einfamilienhaus"):
+        stuetz_lasten = [160.0, 160.0, 140.0, 110.0, 95.0, 75.0, 60.0, 40.0, 30.0, 20.0]
+    else:
+        stuetz_lasten = [120.0, 120.0, 110.0, 90.0, 75.0, 60.0, 45.0, 35.0, 25.0, 15.0]
         
-        st.markdown("---")
-        st.markdown("#### Geplante Sanierungsmaßnahmen")
-        sanierungs_optionen = {
-            "Fenster erneuert (2-fach Wärmeschutzverglasung)": 0.075,
-            "Fenster erneuert (3-fach Wärmeschutzverglasung)": 0.115,
-            "Kellerdeckendämmung (Ca. 6–12 cm)": 0.055,
-            "Oberste Geschossdecke gedämmt (Ca. 14–24 cm)": 0.085,
-            "Dachdämmung (Zwischen-/Aufsparrendämmung)": 0.14,
-            "Außenwanddämmung (Ca. 12–16 cm WDVS)": 0.20,
-            "Rohrleitungen gedämmt (im unheiz. Bereich)": 0.02,
-            "Lüftungsanlage mit Wärmerückgewinnung": 0.10
-        }
-        gewaehlte_sanierungen = st.multiselect(
-            "Wählen Sie durchgeführte oder geplante Sanierungsmaßnahmen:",
-            options=list(sanierungs_optionen.keys()),
-            default=[],
-            key="sanierung_multiselect"
-        )
-        reduktions_faktor = sum([sanierungs_optionen[m] for m in gewaehlte_sanierungen])
-        reduktions_faktor = min(reduktions_faktor, 0.60)
-        heizlast_watt = heizlast_watt * (1.0 - reduktions_faktor)
-        
-        if gewaehlte_sanierungen:
-            st.info(f"💡 Reduktion durch Sanierung: **-{reduktions_faktor*100:.1f}%**")
+    spez_heizlast = np.interp(baujahr, stuetz_jahre, stuetz_lasten)
+    st.caption(f"Angesetzte spezifische Heizlast ({gebaeude_typ.split()[0]}): **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
+    
+    heizlast_watt = wohnflaeche * spez_heizlast
+    
+    st.markdown("#### Geplante Sanierungsmaßnahmen")
+    sanierungs_optionen = {
+        "Fenster erneuert (2-fach Wärmeschutzverglasung)": 0.075,
+        "Fenster erneuert (3-fach Wärmeschutzverglasung)": 0.115,
+        "Kellerdeckendämmung (Ca. 6–12 cm)": 0.055,
+        "Oberste Geschossdecke gedämmt (Ca. 14–24 cm)": 0.085,
+        "Dachdämmung (Zwischen-/Aufsparrendämmung)": 0.14,
+        "Außenwanddämmung (Ca. 12–16 cm WDVS)": 0.20,
+        "Rohrleitungen gedämmt (im unheiz. Bereich)": 0.02,
+        "Lüftungsanlage mit Wärmerückgewinnung": 0.10
+    }
+    gewaehlte_sanierungen = st.multiselect(
+        "Wählen Sie durchgeführte oder geplante Sanierungsmaßnahmen:",
+        options=list(sanierungs_optionen.keys()),
+        default=[],
+        key="sanierung_multiselect"
+    )
+    reduktions_faktor = sum([sanierungs_optionen[m] for m in gewaehlte_sanierungen])
+    reduktions_faktor = min(reduktions_faktor, 0.60)
+    heizlast_watt = heizlast_watt * (1.0 - reduktions_faktor)
+    
+    if gewaehlte_sanierungen:
+        st.info(f"💡 Reduktion durch Sanierung: **-{reduktions_faktor*100:.1f}%**")
 
-    elif auswahl_modus.startswith("2."):
+elif auswahl_modus.startswith("2."):
+    col_b1, col_b2 = st.columns(2)
+    with col_b1:
         brennstoff_art = st.selectbox("Brennstoffart", ["Heizöl (Liter/Jahr)", "Erdgas (kWh/Jahr)", "Flüssiggas (Liter/Jahr)"], key="brennstoff_select")
         verbrauch = st.number_input("Jahresverbrauch", min_value=500, max_value=100000, value=2500, step=100, key="verbrauch_input")
-        if "Heizöl" in brennstoff_art:
-            jaehrliche_waermearbeit = verbrauch * 10 * 0.85
-        elif "Erdgas" in brennstoff_art:
-            jaehrliche_waermearbeit = verbrauch * 0.85
-        else:
-            jaehrliche_waermearbeit = verbrauch * 6.5 * 0.85
-        heizlast_watt = (jaehrliche_waermearbeit / 2000) * 1000
+    with col_b2:
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode2")
+    
+    if "Heizöl" in brennstoff_art:
+        jaehrliche_waermearbeit = verbrauch * 10 * 0.85
+    elif "Erdgas" in brennstoff_art:
+        jaehrliche_waermearbeit = verbrauch * 0.85
     else:
+        jaehrliche_waermearbeit = verbrauch * 6.5 * 0.85
+    heizlast_watt = (jaehrliche_waermearbeit / 2000) * 1000
+else:
+    col_v1, col_v2 = st.columns(2)
+    with col_v1:
         heizlast_kw = st.number_input("Vorhandene Heizlast / Vorgabe (kW)", min_value=2.0, max_value=100.0, value=10.0, step=0.5, key="heizlast_kw_input")
-        heizlast_watt = heizlast_kw * 1000.0
+    with col_v2:
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode3")
+    heizlast_watt = heizlast_kw * 1000.0
 
-with col_input2:
-    # 1. Abschnitt: Klimadaten
-    st.markdown("### Klimadaten")
+st.markdown("---")
+
+# --- Klimadaten ---
+st.subheader("2. Klimadaten")
+col_k1, col_k2, col_k3 = st.columns(3)
+with col_k1:
     plz_eingabe = st.text_input("Standort Postleitzahl (PLZ)", value="56410", max_chars=5, key="plz_input")
     t_norm_automatisch = ermittle_t_norm_aus_plz(plz_eingabe)
-    
-    manuell_ueberschreiben = st.checkbox("Norm-Außentemperatur manuell anpassen", value=False, key="manuell_chk")
-    if manuell_ueberschreiben:
-        t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_value=-25.0, max_value=0.0, value=float(t_norm_automatisch), step=1.0, key="tnorm_manuell")
-    else:
-        t_norm = t_norm_automatisch
-        st.info(f"📍 Ermittelte Norm-Außentemperatur für PLZ {plz_eingabe if plz_eingabe else '...'} : **{t_norm} °C**")
-
+with col_k2:
     t_grenz = st.number_input("Heizgrenztemperatur (T_grenz) [°C]", min_value=10.0, max_value=20.0, value=15.0, step=1.0, key="tgrenz_input")
+with col_k3:
     systemtemperatur = st.selectbox("Systemtemperatur / Vorlauf [°C]", [35, 55], key="systemtemp_select")
 
-    st.markdown("---")
+manuell_ueberschreiben = st.checkbox("Norm-Außentemperatur manuell anpassen", value=False, key="manuell_chk")
+if manuell_ueberschreiben:
+    t_norm = st.number_input("Norm-Außentemperatur (T_norm) [°C]", min_value=-25.0, max_value=0.0, value=float(t_norm_automatisch), step=1.0, key="tnorm_manuell")
+else:
+    t_norm = t_norm_automatisch
+    st.info(f"📍 Ermittelte Norm-Außentemperatur für PLZ {plz_eingabe if plz_eingabe else '...'} : **{t_norm} °C**")
 
-    # 2. Abschnitt: Baureihe + Zubehör
-    st.markdown("### Baureihe + Zubehör")
+st.markdown("---")
+
+# --- Baureihe + Zubehör ---
+st.subheader("3. Baureihe + Zubehör")
+col_z1, col_z2 = st.columns(2)
+with col_z1:
     baureihe_wahl = st.selectbox("Wärmepumpe", ["AHPA", "AHPC"], key="baureihe_select")
+with col_z2:
     speicherloesung = st.selectbox("Speicherlösung", ["Zweispeicherlösung", "SC490-1", "SC490-2"], key="speicherloesung_select")
-    
-    # Bedingte Abfrage: Nur bei Zweispeicherlösung Warmwasser & Frischwasser abfragen
-    if speicherloesung == "Zweispeicherlösung":
-        ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"], key="ww_bereit_select")
-        frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"], key="frischwasser_select")
-    else:
-        ww_bereitung = "nein"
-        frischwasser = "nein"
 
+# Bedingte Abfrage: Nur bei Zweispeicherlösung Warmwasser & Frischwasser abfragen
+pumpengruppen_liste = []
+if speicherloesung == "Zweispeicherlösung":
+    col_w1, col_w2 = st.columns(2)
+    with col_w1:
+        ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"], key="ww_bereit_select")
+    with col_w2:
+        frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"], key="frischwasser_select")
+    
     st.markdown("#### Pumpengruppen-Konfiguration")
     anzahl_pumpengruppen = st.selectbox("Anzahl der Pumpengruppen", [1, 2, 3], key="anzahl_pg_select")
     
-    pumpengruppen_liste = []
+    pg_cols = st.columns(anzahl_pumpengruppen)
     for i in range(1, anzahl_pumpengruppen + 1):
-        typ = st.selectbox(f"Pumpengruppe {i}", ["gemischt", "ungemischt"], key=f"pg_typ_{i}")
-        pumpengruppen_liste.append(typ)
+        with pg_cols[i-1]:
+            typ = st.selectbox(f"Pumpengruppe {i}", ["gemischt", "ungemischt"], key=f"pg_typ_{i}")
+            pumpengruppen_liste.append(typ)
+else:
+    ww_bereitung = "nein"
+    frischwasser = "nein"
 
-# --- Ab hier außerhalb der Spalten (Haupt-Flow) ---
+# --- Ab hier Haupt-Flow ---
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
 gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
 
@@ -333,7 +351,7 @@ def berechne_komponenten(modell_name):
     return puffer_gr, boiler_gr, mag_gr
 
 st.markdown("---")
-st.subheader("2. Auswertung, Bivalenzpunkt & Komponentenauswahl")
+st.subheader("4. Auswertung, Bivalenzpunkt & Komponentenauswahl")
 
 if warnung_aktiv:
     st.warning(f"**Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im Zielbereich von **-4°C bis -9°C**. Das kleinste verfügbare Modell (**{empfohlene_wp}**) wurde als Empfehlung gewählt.")
@@ -427,18 +445,19 @@ if mag_groesse <= 50:
     kombi_info = ARTIKEL_DB["Anschlusskombi"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": kombi_info["artnr"], "Bezeichnung": kombi_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
-# Pumpengruppen zur Stückliste hinzufügen
-for idx, pg_typ in enumerate(pumpengruppen_liste, 1):
-    pg_key = f"Pumpengruppe_{pg_typ}"
-    pg_info = ARTIKEL_DB[pg_key]
-    stueckliste.append({
-        "Pos": len(stueckliste) + 1,
-        "Kategorie": "Pumpengruppe",
-        "Artikelnummer": pg_info["artnr"],
-        "Bezeichnung": f"Pumpengruppe {idx} ({pg_typ})",
-        "Menge": 1,
-        "Einheit": "Stk"
-    })
+# Pumpengruppen zur Stückliste hinzufügen (nur bei Zweispeicherlösung)
+if speicherloesung == "Zweispeicherlösung":
+    for idx, pg_typ in enumerate(pumpengruppen_liste, 1):
+        pg_key = f"Pumpengruppe_{pg_typ}"
+        pg_info = ARTIKEL_DB[pg_key]
+        stueckliste.append({
+            "Pos": len(stueckliste) + 1,
+            "Kategorie": "Pumpengruppe",
+            "Artikelnummer": pg_info["artnr"],
+            "Bezeichnung": f"Pumpengruppe {idx} ({pg_typ})",
+            "Menge": 1,
+            "Einheit": "Stk"
+        })
 
 df_stueckliste = pd.DataFrame(stueckliste)
 st.dataframe(df_stueckliste, use_container_width=True, hide_index=True)
@@ -460,7 +479,7 @@ def create_excel_download(df_items):
             {"Parameter": "Vorlauftemperatur (°C)", "Wert": systemtemperatur},
             {"Parameter": "Warmwasserbereitung", "Wert": ww_bereitung},
             {"Parameter": "Frischwassermodul", "Wert": frischwasser},
-            {"Parameter": "Pumpengruppen Konfiguration", "Wert": ", ".join([f'PG {i+1}: {t}' for i, t in enumerate(pumpengruppen_liste)])}
+            {"Parameter": "Pumpengruppen Konfiguration", "Wert": ", ".join([f'PG {i+1}: {t}' for i, t in enumerate(pumpengruppen_liste)]) if speicherloesung == "Zweispeicherlösung" else "N/A"}
         ])
         df_params.to_excel(writer, index=False, sheet_name='Auslegungsdaten')
     return output.getvalue()
@@ -474,4 +493,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App erfolgreich mit flexiblen Pumpengruppen aktualisiert!")
+st.success("App mit neuem Layout und bedingten Pumpengruppen fehlerfrei geladen!")
