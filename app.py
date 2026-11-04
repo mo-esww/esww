@@ -38,6 +38,8 @@ ARTIKEL_DB = {
     "AHPA 1030": {"artnr": "9526960", "bezeichnung": "Luft/Wasser-Wärmepumpe AHPA 1030"},
     "AHPC 27": {"artnr": "9426470", "bezeichnung": "Luft/Wasser-Wärmepumpe AHPC 27"},
     "AHPC 412": {"artnr": "9426570", "bezeichnung": "Luft/Wasser-Wärmepumpe AHPC 412"},
+    "AHPC 722": {"artnr": "9426860", "bezeichnung": "Luft/Wasser-Wärmepumpe AHPC 722"},
+    "AHPC 1030": {"artnr": "9426960", "bezeichnung": "Luft/Wasser-Wärmepumpe AHPC 1030"},
     "Puffer_300": {"artnr": "8089", "bezeichnung": "Heizwasser-Pufferspeicher 300 Liter"},
     "Puffer_500": {"artnr": "8091", "bezeichnung": "Heizwasser-Pufferspeicher 500 Liter"},
     "Puffer_800": {"artnr": "8093", "bezeichnung": "Heizwasser-Pufferspeicher 800 Liter"},
@@ -68,10 +70,14 @@ ARTIKEL_DB = {
     "Sockel_AHPC": {"artnr": "674080", "bezeichnung": "Wärmepumpensockel AHPC 27 / 412"},
     # Geräuschentkoppler (für jede WP)
     "Geraeuschentkoppler": {"artnr": "644241", "bezeichnung": "Geräuschentkoppler"},
-    # Neue Artikel: Magnetitabscheider, Tauchhülse, Frostschutzventil
+    # Magnetitabscheider, Tauchhülse, Frostschutzventil
     "Magnetitabscheider": {"artnr": "804525", "bezeichnung": "Filter und Magnetitabscheider DN 25 inkl. Isolierung"},
+    "Isolierung_DN32": {"artnr": "804510", "bezeichnung": "Isolierung für Filter und Magnetitabscheider DN 32"},
     "Tauchhuelse": {"artnr": "8047", "bezeichnung": "Tauchhülse DN 15 x 200 mm"},
-    "Frostschutzventil": {"artnr": "8038", "bezeichnung": "Frostschutzventil DN 32"}
+    "Frostschutzventil": {"artnr": "8038", "bezeichnung": "Frostschutzventil DN 32"},
+    # Neue Artikel für AHPC 722 / 1030
+    "Regelungsset": {"artnr": "738180", "bezeichnung": "Regelungsset AP 440 + IM 110"},
+    "Zusatzheizung": {"artnr": "738154", "bezeichnung": "Zusatzheizung 3 - 9 KW 1 1/4\""}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -108,6 +114,14 @@ kennlinien_db_ahpc = {
     "AHPC 412": {
         35: [7.6, 8.0, 8.5, 9.0, 9.5, 10.0, 10.6, 11.2, 11.8, 12.5, 13.0, 13.5, 14.2, 14.9, 15.6, 16.5, 16.8, 17.1, 17.4, 17.7, 18.0],
         55: [7.2, 7.6, 8.0, 8.5, 9.0, 9.5, 10.1, 10.8, 11.5, 12.2, 12.5, 13.1, 13.8, 14.5, 15.2, 16.0, 16.3, 16.6, 16.9, 17.2, 17.4]
+    },
+    "AHPC 722": {
+        35: [11.8, 12.5, 13.2, 13.9, 14.6, 15.4, 16.2, 16.5, 16.8, 17.1, 17.5, 19.0, 21.0, 23.2, 25.5, 27.5, 29.5, 31.5, 33.5, 35.5, 37.0],
+        55: [10.6, 11.3, 12.0, 12.6, 13.2, 13.8, 14.3, 14.3, 14.4, 14.5, 14.6, 16.0, 18.0, 19.8, 21.6, 23.2, 24.8, 26.4, 28.0, 29.5, 30.8]
+    },
+    "AHPC 1030": {
+        35: [16.5, 17.5, 18.5, 19.5, 21.0, 22.5, 24.0, 24.8, 25.5, 26.2, 27.0, 30.0, 34.0, 38.0, 42.0, 45.8, 49.5, 53.0, 56.5, 60.0, 63.0],
+        55: [16.2, 17.0, 17.8, 18.6, 19.8, 21.0, 22.2, 22.8, 23.3, 23.8, 24.2, 27.0, 31.0, 34.8, 38.5, 41.8, 45.2, 48.5, 51.8, 55.0, 58.0]
     }
 }
 
@@ -354,7 +368,7 @@ def berechne_komponenten(modell_name):
         boiler_gr = 0
         mag_gr = 50  # Fix 50 Liter bei SC490-1 und SC490-2
     else:
-        puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300}
+        puffer_tabelle = {"AHPA 412": 300, "AHPA 413": 500, "AHPA 618": 500, "AHPA 722": 800, "AHPA 1030": 1000, "AHPC 27": 300, "AHPC 412": 300, "AHPC 722": 800, "AHPC 1030": 1000}
         puffer_gr = puffer_tabelle.get(modell_name, 300)
 
         if frischwasser == "ja":
@@ -466,15 +480,28 @@ if baureihe_wahl == "AHPA":
 elif baureihe_wahl == "AHPC":
     sockel_info = ARTIKEL_DB["Sockel_AHPC"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": sockel_info["artnr"], "Bezeichnung": sockel_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+    
+    # Zusatzartikel bei AHPC 722 oder 1030
+    if aktives_modell in ["AHPC 722", "AHPC 1030"]:
+        reg_info = ARTIKEL_DB["Regelungsset"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": reg_info["artnr"], "Bezeichnung": reg_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        
+        zus_info = ARTIKEL_DB["Zusatzheizung"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": zus_info["artnr"], "Bezeichnung": zus_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
 if speicherloesung.startswith("SC490"):
     sc_key = "SC490_1" if speicherloesung == "SC490-1" else "SC490_2"
     sc_info = ARTIKEL_DB[sc_key]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Speicher", "Artikelnummer": sc_info["artnr"], "Bezeichnung": sc_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 else:
-    # Wenn kein SC490 ausgewählt ist: Magnetitabscheider und 2x Tauchhülse hinzufügen
+    # Wenn kein SC490 ausgewählt ist: Magnetitabscheider, Isolierung & Tauchhülsen hinzufügen
     mag_abs_info = ARTIKEL_DB["Magnetitabscheider"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": mag_abs_info["artnr"], "Bezeichnung": mag_abs_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+    
+    # Bedingter Tausch der Isolierung bei AHPC 722 / 1030
+    if baureihe_wahl == "AHPC" and aktives_modell in ["AHPC 722", "AHPC 1030"]:
+        iso_info = ARTIKEL_DB["Isolierung_DN32"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": iso_info["artnr"], "Bezeichnung": iso_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
     
     tauch_info = ARTIKEL_DB["Tauchhuelse"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": tauch_info["artnr"], "Bezeichnung": tauch_info["bezeichnung"], "Menge": 2, "Einheit": "Stk"})
@@ -597,4 +624,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App mit Magnetitabscheider, Tauchhülsen und Frostschutzventil aktualisiert!")
+st.success("App mit AHPC 722 / 1030 Sonderartikeln und DN 32 Isolierung erfolgreich aktualisiert!")
