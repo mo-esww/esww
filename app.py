@@ -53,7 +53,9 @@ ARTIKEL_DB = {
     "MAG_80": {"artnr": "8065", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 80 Liter"},
     "Anschlusskombi": {"artnr": "80481", "bezeichnung": "Gefäßanschlusskombination für MAGs bis 50L inkl. Isolierung"},
     "Pumpengruppe_ungemischt": {"artnr": "PG-UNG", "bezeichnung": "Pumpengruppe ungemischt"},
-    "Pumpengruppe_gemischt": {"artnr": "PG-GEM", "bezeichnung": "Pumpengruppe gemischt"}
+    "Pumpengruppe_gemischt": {"artnr": "PG-GEM", "bezeichnung": "Pumpengruppe gemischt"},
+    "Zirkulationspumpe": {"artnr": "8012", "bezeichnung": "Zirkulationspumpe"},
+    "Zirkulations_Verschraubung": {"artnr": "80121", "bezeichnung": "Verschraubungssatz für Zirkulationspumpe"}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -136,7 +138,7 @@ personen = 3
 if auswahl_modus.startswith("1."):
     gebaeude_typ = st.radio(
         "Gebäudetyp", 
-        ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], 
+        ["Ein-/Zweispeicherlösung (EFH)", "Mehrfamilienhaus (MFH)"], 
         horizontal=True,
         key="gebaeude_typ_radio"
     )
@@ -148,7 +150,7 @@ if auswahl_modus.startswith("1."):
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7], key="personen_select_mode1")
     
     stuetz_jahre = [1930, 1958, 1968, 1977, 1983, 1994, 2001, 2008, 2015, 2026]
-    if gebaeude_typ.startswith("Einfamilienhaus"):
+    if gebaeude_typ.startswith("Ein-/Zweispeicherlösung"):
         stuetz_lasten = [160.0, 160.0, 140.0, 110.0, 95.0, 75.0, 60.0, 40.0, 30.0, 20.0]
     else:
         stuetz_lasten = [120.0, 120.0, 110.0, 90.0, 75.0, 60.0, 45.0, 35.0, 25.0, 15.0]
@@ -252,11 +254,11 @@ if speicherloesung == "Ein-/Zweispeicherlösung":
             typ = st.selectbox(f"Pumpengruppe {i}", ["gemischt", "ungemischt"], key=f"pg_typ_{i}")
             pumpengruppen_liste.append(typ)
 else:
-    ww_bereitung = "ja"  # Bei SC490 wird Warmwasser standardmäßig mit eingerechnet
+    ww_bereitung = "ja"
     frischwasser = "nein"
 
 # --- Ab hier Haupt-Flow ---
-# 500W pro Person wird nun unabhängig von der Speicherlösung (auch bei SC490) für die Warmwasserbereitung aufgeschlagen
+# 500W pro Person wird jetzt für alle Speicherlösungen (inkl. SC490-1 und SC490-2) eingerechnet
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
 gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
 
@@ -458,6 +460,27 @@ if speicherloesung == "Ein-/Zweispeicherlösung":
             "Menge": 1,
             "Einheit": "Stk"
         })
+    
+    # Zirkulationspumpe & Verschraubungssatz bei Ein-/Zweispeicherlösung hinzufügen
+    zirk_info = ARTIKEL_DB["Zirkulationspumpe"]
+    stueckliste.append({
+        "Pos": len(stueckliste) + 1,
+        "Kategorie": "Warmwasser-Zubehör",
+        "Artikelnummer": zirk_info["artnr"],
+        "Bezeichnung": zirk_info["bezeichnung"],
+        "Menge": 1,
+        "Einheit": "Stk"
+    })
+    
+    zirk_verschraubung = ARTIKEL_DB["Zirkulations_Verschraubung"]
+    stueckliste.append({
+        "Pos": len(stueckliste) + 1,
+        "Kategorie": "Warmwasser-Zubehör",
+        "Artikelnummer": zirk_verschraubung["artnr"],
+        "Bezeichnung": zirk_verschraubung["bezeichnung"],
+        "Menge": 1,
+        "Einheit": "Stk"
+    })
 
 df_stueckliste = pd.DataFrame(stueckliste)
 st.dataframe(df_stueckliste, use_container_width=True, hide_index=True)
@@ -492,4 +515,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App fehlerfrei aktualisiert!")
+st.success("App erfolgreich mit Zirkulationspumpe, WW-Logik für SC490 und Umbenennung aktualisiert!")
