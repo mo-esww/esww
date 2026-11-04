@@ -76,9 +76,17 @@ with col_input1:
     heizlast_watt = 0.0
     if auswahl_modus.startswith("1."):
         wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=1000, value=160, step=10)
-        baujahr = st.selectbox("Baujahr / Dämmstandard", [1950, 1970, 1980, 1990, 2000, 2010, 2016])
-        heizlast_tabelle = {1950: 160.0, 1970: 130.0, 1980: 110.0, 1990: 90.0, 2000: 70.0, 2010: 50.0, 2016: 40.0}
-        spez_heizlast = heizlast_tabelle.get(baujahr, 50.0)
+        
+        # Exakter Baujahr-Slider mit geglätteter Interpolation (feiner abgestuft von 1950 bis 2024)
+        baujahr = st.slider("Baujahr / Dämmstandard", min_value=1950, max_value=2024, value=1980, step=1)
+        
+        # Stützpunkte für die feine, geglättete Interpolation zwischen den Jahrzehnten
+        stuetz_jahre = [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2016, 2024]
+        stuetz_lasten = [160.0, 145.0, 130.0, 110.0, 90.0, 70.0, 50.0, 40.0, 35.0]
+        
+        spez_heizlast = np.interp(baujahr, stuetz_jahre, stuetz_lasten)
+        st.caption(f"📐 Angesetzte spezifische Heizlast: **{spez_heizlast:.1f} W/m²** (Baujahr {baujahr})")
+        
         heizlast_watt = wohnflaeche * spez_heizlast
         personen = st.selectbox("Anzahl Personen im Haushalt", [1, 2, 3, 4, 5, 6, 7])
     elif auswahl_modus.startswith("2."):
