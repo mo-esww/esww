@@ -68,9 +68,9 @@ ARTIKEL_DB = {
     "Sockel_AHPC": {"artnr": "674080", "bezeichnung": "Wärmepumpensockel AHPC 27 / 412"},
     # Geräuschentkoppler (für jede WP)
     "Geraeuschentkoppler": {"artnr": "644241", "bezeichnung": "Geräuschentkoppler"},
-    # Magnetitabscheider, Tauchhülse, Frostschutzventil
+    # Magnetitabscheider DN 25 & DN 32, Tauchhülse, Frostschutzventil
     "Magnetitabscheider": {"artnr": "804525", "bezeichnung": "Filter und Magnetitabscheider DN 25 inkl. Isolierung"},
-    "Isolierung_DN32": {"artnr": "804510", "bezeichnung": "Isolierung für Filter und Magnetitabscheider DN 32"},
+    "Magnetitabscheider_DN32": {"artnr": "804532", "bezeichnung": "Filter und Magnetitabscheider DN 32 inkl. Isolierung"},
     "Tauchhuelse": {"artnr": "8047", "bezeichnung": "Tauchhülse DN 15 x 200 mm"},
     "Frostschutzventil": {"artnr": "8038", "bezeichnung": "Frostschutzventil DN 32"},
     # Spezifische Artikel für AHPA 722 / 1030
@@ -483,14 +483,13 @@ if speicherloesung.startswith("SC490"):
     sc_info = ARTIKEL_DB[sc_key]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Speicher", "Artikelnummer": sc_info["artnr"], "Bezeichnung": sc_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 else:
-    # Wenn kein SC490 ausgewählt ist: Magnetitabscheider, Isolierung & Tauchhülsen hinzufügen
-    mag_abs_info = ARTIKEL_DB["Magnetitabscheider"]
-    stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": mag_abs_info["artnr"], "Bezeichnung": mag_abs_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
-    
-    # Bedingter Tausch der Isolierung bei AHPA 722 / 1030
+    # Wenn kein SC490 ausgewählt ist: Magnetitabscheider (DN 25 oder DN 32) & Tauchhülsen hinzufügen
     if baureihe_wahl == "AHPA" and aktives_modell in ["AHPA 722", "AHPA 1030"]:
-        iso_info = ARTIKEL_DB["Isolierung_DN32"]
-        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": iso_info["artnr"], "Bezeichnung": iso_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        mag_abs_info = ARTIKEL_DB["Magnetitabscheider_DN32"]
+    else:
+        mag_abs_info = ARTIKEL_DB["Magnetitabscheider"]
+        
+    stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": mag_abs_info["artnr"], "Bezeichnung": mag_abs_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
     
     tauch_info = ARTIKEL_DB["Tauchhuelse"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": tauch_info["artnr"], "Bezeichnung": tauch_info["bezeichnung"], "Menge": 2, "Einheit": "Stk"})
@@ -613,4 +612,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App erfolgreich korrigiert: AHPA 722 / 1030 Sonderartikel & Isolierung aktiv!")
+st.success("App erfolgreich aktualisiert: Magnetitabscheider DN 32 bei AHPA 722/1030 aktiv!")
