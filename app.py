@@ -195,6 +195,10 @@ row_empf = df_ergebnisse[df_ergebnisse["Modell"] == empfohlene_wp].iloc[0]
 biv_empfehlung = row_empf["Bivalenzpunkt [°C]"]
 aktive_leistungen = row_empf["Leistungen"]
 
+alternativ_wp = ""
+alternativ_biv = 0.0
+alternativ_leistungen = []
+
 if warnung_aktiv:
     staerkere_modelle = df_geprueft[df_geprueft["MaxLeistungBei22C"] <= row_empf["MaxLeistungBei22C"]]
     if len(staerkere_modelle) > 1:
@@ -230,11 +234,4 @@ if warnung_aktiv:
         f"Empfohlenes Max-Modell: {empfohlene_wp} (Biv.: {biv_empfehlung} °C)",
         f"Nächstkleinere Alternative: {alternativ_wp} (Biv.: {alternativ_biv} °C)"
     ]
-    gewaehlte_option = st.radio("Welches Modell möchten Sie für die Detailansicht und das Diagramm verwenden?", auswahl_optionen)
-    
-    if "Alternative" in gewaehlte_option:
-        aktives_modell = alternativ_wp
-        aktiver_biv = alternativ_biv
-        aktive_leistungen = alternativ_leistungen
-    else:
-        aktives_
+    gewaehlte_option = st.radio("Welches Modell möchten Sie für die Detailansicht und das Diagramm verwenden?",
