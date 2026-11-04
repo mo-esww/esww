@@ -24,7 +24,7 @@ with col_logo:
 
 with col_title:
     st.title("Wärmepumpen-Konfigurator & Bivalenzpunkt-Rechner")
-    st.markdown("*Interaktive Auslegung, Baureihe-Wahl und Begrenzung des Bivalenzpunkts auf -4°C bis -9°C*")
+    st.markdown("*Interaktive Auslegung, Baureihe-Wahl, Sanierungsmaßnahmen & Bivalenzpunkt-Begrenzung*")
     st.markdown("*Ersetzt keine Heizlastberechnung nach Norm 12831*")
 
 st.markdown("---")
@@ -68,7 +68,7 @@ kennlinien_db_ahpc = {
 }
 
 # --- Eingabebereich ---
-st.subheader("1. Gebäudedaten & Parameter")
+st.subheader("1. Gebäudedaten, Parameter & Sanierung")
 col_input1, col_input2 = st.columns(2)
 
 with col_input1:
@@ -115,8 +115,38 @@ with col_input2:
     ww_bereitung = st.selectbox("Warmwasserbereitung", ["ja", "nein"])
     frischwasser = st.selectbox("Frischwassermodul", ["nein", "ja"])
 
+# --- Sanierungsmaßnahmen Auswahl ---
+st.markdown("---")
+st.subheader("2. Geplante Sanierungsmaßnahmen (optional)")
+sanierungs_optionen = {
+    "Fenster erneuert (2-fach Wärmeschutzverglasung)": 0.075,
+    "Fenster erneuert (3-fach Wärmeschutzverglasung)": 0.115,
+    "Kellerdeckendämmung (Ca. 6–12 cm)": 0.055,
+    "Oberste Geschossdecke gedämmt (Ca. 14–24 cm)": 0.085,
+    "Dachdämmung (Zwischen-/Aufsparrendämmung)": 0.14,
+    "Außenwanddämmung (Ca. 12–16 cm WDVS)": 0.20,
+    "Rohrleitungen gedämmt (im unheiz. Bereich)": 0.02,
+    "Lüftungsanlage mit Wärmerückgewinnung": 0.10
+}
+
+gewaehlte_sanierungen = st.multiselect(
+    "Wählen Sie durchgeführte oder geplante Sanierungsmaßnahmen aus:",
+    options=list(sanierungs_optionen.keys()),
+    default=[]
+)
+
+# Berechnung des Sanierungs-Abzugs (multiplikativ oder additiv, hier kombiniert als prozentuale Reduktion)
+reduktions_faktor = sum([sanierungs_optionen[m] for m in gewaehlte_sanierungen])
+# Begrenzung der maximalen Reduktion auf z.B. 60% um realistisch zu bleiben
+reduktions_faktor = min(reduktions_faktor, 0.60)
+
+heizlast_nach_sanierung = heizlast_watt * (1.0 - reduktions_faktor)
+
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
-gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
+gesamt_last_kw = (heizlast_nach_sanierung + ww_aufschlag) / 1000.0
+
+if gewaehlte_sanierungen:
+    st.info(f"💡 Durch die gewählten Sanierungen reduziert sich die Gebäudeheizlast um ca. **{reduktions_faktor*100:.1f}%** (Heizlast vor Sanierung: {heizlast_watt/1000:.1f} kW -> neu: {heizlast_nach_sanierung/1000:.1f} kW).")
 
 aktive_db = kennlinien_db_ahpa if baureihe_wahl == "AHPA" else kennlinien_db_ahpc
 ergebnisse_liste = []
@@ -204,7 +234,7 @@ def berechne_komponenten(modell_name):
     return puffer_gr, boiler_gr, mag_gr
 
 st.markdown("---")
-st.subheader("Auswertung, Bivalenzpunkt & Komponentenauswahl")
+st.subheader("3. Auswertung, Bivalenzpunkt & Komponentenauswahl")
 
 if warnung_aktiv:
     st.warning(f"**Hinweis:** Keines der Modelle aus der Baureihe **{baureihe_wahl}** erreicht bei dieser Heizlast einen Bivalenzpunkt im exakten Zielbereich von **-4°C bis -9°C**. Das größte verfügbare Modell (**{empfohlene_wp}**) ergibt einen Bivalenzpunkt von **{biv_empfehlung} °C**.")
@@ -237,7 +267,7 @@ puffer_groesse, boiler_groesse, mag_groesse = berechne_komponenten(aktives_model
 
 res_col1, res_col2, res_col3 = st.columns(3)
 with res_col1:
-    st.metric(label="Gesamt-Heizlast (inkl. WW)", value=f"{gesamt_last_kw:.1f} kW")
+    st.metric(label="Gesamt-Heizlast (inkl. Sanierung & WW)", value=f"{gesamt_last_kw:.1f} kW")
     st.metric(label=f"Ausgewählte WP ({baureihe_wahl})", value=aktives_modell)
 
 with res_col2:
@@ -293,7 +323,8 @@ def create_excel_download(df_items):
             {"Parameter": "Gebäudetyp", "Wert": gebaeude_typ if 'gebaeude_typ' in locals() else "N/A"},
             {"Parameter": "Gewähltes WP-Modell", "Wert": aktives_modell},
             {"Parameter": "Baureihe", "Wert": baureihe_wahl},
-            {"Parameter": "Gesamtheizlast (kW)", "Wert": round(gesamt_last_kw, 2)},
+            {"Parameter": "Sanierungsmaßnahmen", "Wert": ", ".join(gewaehlte_sanierungen) if gewaehlte_sanierungen else "Keine"},
+            {"Parameter": "Gesamtheizlast inkl. Sanierung (kW)", "Wert": round(gesamt_last_kw, 2)},
             {"Parameter": "Ermittelter Bivalenzpunkt (°C)", "Wert": round(aktiver_biv, 1)},
             {"Parameter": "Vorlauftemperatur (°C)", "Wert": systemtemperatur},
             {"Parameter": "Norm-Außentemperatur (°C)", "Wert": t_norm},
@@ -312,4 +343,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App erfolgreich gestartet und fehlerfrei kompiliert!")
+st.success("Sanierungsmaßnahmen und Berechnungen erfolgreich integriert!")
