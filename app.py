@@ -64,19 +64,4 @@ kennlinien_db_ahpa = {
 
 kennlinien_db_ahpc = {
     "AHPC 27": {35: [4.7, 5.0, 5.3, 5.7, 6.1, 6.5, 7.0, 7.5, 8.0, 7.9, 7.9, 8.3, 8.7, 9.1, 9.5, 10.0, 10.1, 10.3, 10.4, 10.6, 10.7], 55: [4.5, 4.8, 5.1, 5.5, 5.9, 6.3, 6.8, 7.0, 7.1, 7.1, 7.1, 7.5, 8.0, 8.4, 8.8, 9.0, 9.2, 9.3, 9.5, 9.6, 9.7]},
-    "AHPC 412": {35: [7.6, 8.0, 8.5, 9.0, 9.5, 10.0, 10.6, 11.2, 11.8, 12.5, 13.0, 13.5, 14.2, 14.9, 15.6, 16.5, 16.8, 17.1, 17.4, 17.7, 18.0], 55: [7.2, 7.6, 8.0, 8.5, 9.0, 9.5, 10.1, 10.8, 11.5, 12.2, 12.5, 13.1, 13.8, 14.5, 15.2, 16.0, 16.3, 16.6, 16.9, 17.2, 17.4]}
-}
-
-# --- Eingabebereich ---
-st.subheader("1. Gebäudedaten & Parameter")
-col_input1, col_input2 = st.columns(2)
-
-gewaehlte_sanierungen = []
-
-with col_input1:
-    auswahl_modus = st.radio("Wie möchten Sie die Heizlast ermitteln?", ["1. Über Gebäudestandard & Wohnfläche (Standard)", "2. Anhand fossilem Brennstoffverbrauch (Öl / Gas)", "3. Direkte Heizlast-Vorgabe (z.B. nach DIN 12831)"])
-    heizlast_watt = 0.0
-    if auswahl_modus.startswith("1."):
-        gebaeude_typ = st.radio("Gebäudetyp", ["Einfamilienhaus (EFH)", "Mehrfamilienhaus (MFH)"], horizontal=True)
-        wohnflaeche = st.number_input("Beheizte Wohnfläche (m²)", min_value=20, max_value=2000, value=160, step=10)
-        baujahr = st.slider("Baujahr / Dämmstandard", min_value=1930, max_value=2026, value=1
+    "AHPC 412": {35:
