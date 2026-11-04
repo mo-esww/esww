@@ -52,8 +52,10 @@ ARTIKEL_DB = {
     "MAG_50": {"artnr": "80641", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 50 Liter"},
     "MAG_80": {"artnr": "8065", "bezeichnung": "Membran-Ausdehnungsgefäß Heizung 80 Liter"},
     "Anschlusskombi": {"artnr": "80481", "bezeichnung": "Gefäßanschlusskombination für MAGs bis 50L inkl. Isolierung"},
-    "Pumpengruppe_ungemischt": {"artnr": "PG-UNG", "bezeichnung": "Pumpengruppe ungemischt"},
-    "Pumpengruppe_gemischt": {"artnr": "PG-GEM", "bezeichnung": "Pumpengruppe gemischt"},
+    "Pumpengruppe_ungemischt": {"artnr": "8010", "bezeichnung": "Pumpengruppe ungemischt"},
+    "Pumpengruppe_gemischt": {"artnr": "8011", "bezeichnung": "Pumpengruppe gemischt"},
+    "Stellmotor": {"artnr": "8003", "bezeichnung": "Stellmotor für Mischventile"},
+    "Wandhalterung": {"artnr": "8015", "bezeichnung": "Wandhalterung für Pumpengruppe"},
     "Zirkulationspumpe": {"artnr": "8012", "bezeichnung": "Zirkulationspumpe"},
     "Zirkulations_Verschraubung": {"artnr": "80121", "bezeichnung": "Verschraubungssatz für Zirkulationspumpe"}
 }
@@ -258,7 +260,6 @@ else:
     frischwasser = "nein"
 
 # --- Ab hier Haupt-Flow ---
-# 500W pro Person wird jetzt für alle Speicherlösungen (inkl. SC490-1 und SC490-2) eingerechnet
 ww_aufschlag = (personen * 500) if ww_bereitung == "ja" else 0
 gesamt_last_kw = (heizlast_watt + ww_aufschlag) / 1000.0
 
@@ -447,16 +448,47 @@ if mag_groesse <= 50:
     kombi_info = ARTIKEL_DB["Anschlusskombi"]
     stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": kombi_info["artnr"], "Bezeichnung": kombi_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
-# Pumpengruppen zur Stückliste hinzufügen (nur bei Ein-/Zweispeicherlösung)
+# Pumpengruppen und Wandhalterung zur Stückliste hinzufügen (nur bei Ein-/Zweispeicherlösung)
 if speicherloesung == "Ein-/Zweispeicherlösung":
     for idx, pg_typ in enumerate(pumpengruppen_liste, 1):
-        pg_key = f"Pumpengruppe_{pg_typ}"
-        pg_info = ARTIKEL_DB[pg_key]
+        if pg_typ == "ungemischt":
+            pg_info = ARTIKEL_DB["Pumpengruppe_ungemischt"]
+            stueckliste.append({
+                "Pos": len(stueckliste) + 1,
+                "Kategorie": "Pumpengruppe",
+                "Artikelnummer": pg_info["artnr"],
+                "Bezeichnung": f"Pumpengruppe {idx} ungemischt",
+                "Menge": 1,
+                "Einheit": "Stk"
+            })
+        else:
+            pg_info = ARTIKEL_DB["Pumpengruppe_gemischt"]
+            stueckliste.append({
+                "Pos": len(stueckliste) + 1,
+                "Kategorie": "Pumpengruppe",
+                "Artikelnummer": pg_info["artnr"],
+                "Bezeichnung": f"Pumpengruppe {idx} gemischt",
+                "Menge": 1,
+                "Einheit": "Stk"
+            })
+            # Stellmotor für Mischventile hinzufügen
+            stell_info = ARTIKEL_DB["Stellmotor"]
+            stueckliste.append({
+                "Pos": len(stueckliste) + 1,
+                "Kategorie": "Pumpengruppe",
+                "Artikelnummer": stell_info["artnr"],
+                "Bezeichnung": f"Stellmotor für Mischventile (für PG {idx})",
+                "Menge": 1,
+                "Einheit": "Stk"
+            })
+        
+        # Wandhalterung für jede Pumpengruppe (immer auswerfen)
+        wand_info = ARTIKEL_DB["Wandhalterung"]
         stueckliste.append({
             "Pos": len(stueckliste) + 1,
             "Kategorie": "Pumpengruppe",
-            "Artikelnummer": pg_info["artnr"],
-            "Bezeichnung": f"Pumpengruppe {idx} ({pg_typ})",
+            "Artikelnummer": wand_info["artnr"],
+            "Bezeichnung": f"Wandhalterung für Pumpengruppe {idx}",
             "Menge": 1,
             "Einheit": "Stk"
         })
@@ -515,4 +547,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App erfolgreich mit Zirkulationspumpe, WW-Logik für SC490 und Umbenennung aktualisiert!")
+st.success("App mit Pumpengruppen-Artikeln (8010, 8011, 8003, 8015) aktualisiert!")
