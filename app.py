@@ -57,7 +57,13 @@ ARTIKEL_DB = {
     "Stellmotor": {"artnr": "8003", "bezeichnung": "Stellmotor für Mischventile"},
     "Wandhalterung": {"artnr": "8015", "bezeichnung": "Wandhalterung für Pumpengruppe"},
     "Zirkulationspumpe": {"artnr": "8012", "bezeichnung": "Zirkulationspumpe"},
-    "Zirkulations_Verschraubung": {"artnr": "80121", "bezeichnung": "Verschraubungssatz für Zirkulationspumpe"}
+    "Zirkulations_Verschraubung": {"artnr": "80121", "bezeichnung": "Verschraubungssatz für Zirkulationspumpe"},
+    # Neue Anschlusssets & Verdampferabdeckungen
+    "Anschluss_673516": {"artnr": "673516", "bezeichnung": "Anschlussset für Wärmepumpe AHPA 412"},
+    "Anschluss_738171": {"artnr": "738171", "bezeichnung": "Anschlussset für Wärmepumpe AHPA 413 & 618"},
+    "Verdampfer_670382": {"artnr": "670382", "bezeichnung": "Verdampferabdeckung für AHPA 412"},
+    "Verdampfer_670414": {"artnr": "670414", "bezeichnung": "Verdampferabdeckung für AHPA 413 & 618"},
+    "Verdampfer_673140": {"artnr": "673140", "bezeichnung": "Verdampferabdeckung für AHPA 722 & 1030"}
 }
 
 # --- Kennlinien-Datenbank ---
@@ -421,22 +427,42 @@ stueckliste = []
 wp_info = ARTIKEL_DB.get(aktives_modell, {"artnr": "UNKNOWN", "bezeichnung": aktives_modell})
 stueckliste.append({"Pos": 1, "Kategorie": "Wärmepumpe", "Artikelnummer": wp_info["artnr"], "Bezeichnung": wp_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
+# Anschlussset und Verdampferabdeckung basierend auf WP-Modell hinzufügen (gilt für AHPA)
+if baureihe_wahl == "AHPA":
+    if aktives_modell == "AHPA 412":
+        anschluss_info = ARTIKEL_DB["Anschluss_673516"]
+        st.append_item = stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": anschluss_info["artnr"], "Bezeichnung": anschluss_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        
+        verd_info = ARTIKEL_DB["Verdampfer_670382"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": verd_info["artnr"], "Bezeichnung": verd_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        
+    elif aktives_modell in ["AHPA 413", "AHPA 618"]:
+        anschluss_info = ARTIKEL_DB["Anschluss_738171"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": anschluss_info["artnr"], "Bezeichnung": anschluss_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        
+        verd_info = ARTIKEL_DB["Verdampfer_670414"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": verd_info["artnr"], "Bezeichnung": verd_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        
+    elif aktives_modell in ["AHPA 722", "AHPA 1030"]:
+        verd_info = ARTIKEL_DB["Verdampfer_673140"]
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Zubehör", "Artikelnummer": verd_info["artnr"], "Bezeichnung": verd_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+
 if speicherloesung.startswith("SC490"):
     sc_key = "SC490_1" if speicherloesung == "SC490-1" else "SC490_2"
     sc_info = ARTIKEL_DB[sc_key]
-    stueckliste.append({"Pos": 2, "Kategorie": "Speicher", "Artikelnummer": sc_info["artnr"], "Bezeichnung": sc_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+    stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Speicher", "Artikelnummer": sc_info["artnr"], "Bezeichnung": sc_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 else:
     puffer_key = f"Puffer_{puffer_groesse}"
     puffer_info = ARTIKEL_DB.get(puffer_key, {"artnr": f"PS-{puffer_groesse}L", "bezeichnung": f"Pufferspeicher {puffer_groesse} L"})
-    stueckliste.append({"Pos": 2, "Kategorie": "Speicher", "Artikelnummer": puffer_info["artnr"], "Bezeichnung": puffer_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+    stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Speicher", "Artikelnummer": puffer_info["artnr"], "Bezeichnung": puffer_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
     if frischwasser == "ja":
         friwa_info = ARTIKEL_DB["FriWa_Modul"]
-        stueckliste.append({"Pos": 3, "Kategorie": "Warmwasser", "Artikelnummer": friwa_info["artnr"], "Bezeichnung": friwa_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Warmwasser", "Artikelnummer": friwa_info["artnr"], "Bezeichnung": friwa_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
     elif ww_bereitung == "ja":
         boiler_key = f"Boiler_{boiler_groesse}"
         boiler_info = ARTIKEL_DB.get(boiler_key, {"artnr": f"TWS-{boiler_groesse}L", "bezeichnung": f"Trinkwasserspeicher {boiler_groesse} L"})
-        stueckliste.append({"Pos": 3, "Kategorie": "Warmwasser", "Artikelnummer": boiler_info["artnr"], "Bezeichnung": boiler_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
+        stueckliste.append({"Pos": len(stueckliste) + 1, "Kategorie": "Warmwasser", "Artikelnummer": boiler_info["artnr"], "Bezeichnung": boiler_info["bezeichnung"], "Menge": 1, "Einheit": "Stk"})
 
 # MAG hinzufügen
 mag_key = f"MAG_{mag_groesse}"
@@ -471,7 +497,6 @@ if speicherloesung == "Ein-/Zweispeicherlösung":
                 "Menge": 1,
                 "Einheit": "Stk"
             })
-            # Stellmotor für Mischventile hinzufügen
             stell_info = ARTIKEL_DB["Stellmotor"]
             stueckliste.append({
                 "Pos": len(stueckliste) + 1,
@@ -482,7 +507,6 @@ if speicherloesung == "Ein-/Zweispeicherlösung":
                 "Einheit": "Stk"
             })
         
-        # Wandhalterung für jede Pumpengruppe (immer auswerfen)
         wand_info = ARTIKEL_DB["Wandhalterung"]
         stueckliste.append({
             "Pos": len(stueckliste) + 1,
@@ -493,7 +517,6 @@ if speicherloesung == "Ein-/Zweispeicherlösung":
             "Einheit": "Stk"
         })
     
-    # Zirkulationspumpe & Verschraubungssatz bei Ein-/Zweispeicherlösung hinzufügen
     zirk_info = ARTIKEL_DB["Zirkulationspumpe"]
     stueckliste.append({
         "Pos": len(stueckliste) + 1,
@@ -547,4 +570,4 @@ st.download_button(
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 
-st.success("App mit Pumpengruppen-Artikeln (8010, 8011, 8003, 8015) aktualisiert!")
+st.success("App mit Anschlusssets und Verdampferabdeckungen erfolgreich aktualisiert!")
